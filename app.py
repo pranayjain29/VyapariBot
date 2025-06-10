@@ -89,7 +89,7 @@ def get_gemini_response(prompt):
         return response.text
     except Exception as e:
         logger.error(f"Failed to get Gemini response: {str(e)}")
-        return "Arre beta, thoda technical problem ho gaya hai. Thodi der baad try karna."
+        return "Arre yaar, thoda technical problem ho gaya hai. Thodi der baad try karna."
 
 @app.route('/webhook', methods=['POST'])
 async def webhook():
