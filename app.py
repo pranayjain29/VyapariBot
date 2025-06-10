@@ -6,8 +6,10 @@ import requests
 from dotenv import load_dotenv
 import google.generativeai as genai
 from invoice_generator import InvoiceGenerator
+from agents import InvoiceAgent
 import re
 from datetime import datetime
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 invoice_gen = InvoiceGenerator()
+invoice_agent = InvoiceAgent()
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -89,7 +92,7 @@ def get_gemini_response(prompt):
         return "Arre beta, thoda technical problem ho gaya hai. Thodi der baad try karna."
 
 @app.route('/webhook', methods=['POST'])
-def webhook():
+async def webhook():
     try:
         update = request.get_json()
         
@@ -100,17 +103,16 @@ def webhook():
         chat_id = message['chat']['id']
         text = message.get('text', '')
         
-        # Extract invoice details
-        details = extract_invoice_details(text)
+        # Use agent to analyze message
+        is_invoice, details = await invoice_agent.analyze_message(text)
         
-        if details:
-            quantity, item_name, price, date = details
+        if is_invoice and details:
             # Generate invoice
             invoice_file = invoice_gen.generate_invoice(
-                item_name=item_name,
-                quantity=quantity,
-                price=price,
-                date=date
+                item_name=details['item_name'],
+                quantity=details['quantity'],
+                price=details['price'],
+                date=details['date']
             )
             
             # Send invoice as document

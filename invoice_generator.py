@@ -1,8 +1,10 @@
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from datetime import datetime
 import os
 
@@ -13,9 +15,24 @@ class InvoiceGenerator:
             'CustomTitle',
             parent=self.styles['Heading1'],
             fontSize=24,
-            spaceAfter=30
+            spaceAfter=30,
+            alignment=1  # Center alignment
         )
         self.normal_style = self.styles['Normal']
+        self.header_style = ParagraphStyle(
+            'Header',
+            parent=self.styles['Normal'],
+            fontSize=12,
+            textColor=colors.white,
+            alignment=1
+        )
+        self.total_style = ParagraphStyle(
+            'Total',
+            parent=self.styles['Normal'],
+            fontSize=14,
+            textColor=colors.black,
+            alignment=2  # Right alignment
+        )
         
     def generate_invoice(self, item_name, quantity, price, date, invoice_number=None):
         # Create a temporary file for the PDF
@@ -27,6 +44,7 @@ class InvoiceGenerator:
         
         # Add title
         elements.append(Paragraph("INVOICE", self.title_style))
+        elements.append(Spacer(1, 20))
         
         # Add invoice details
         if not invoice_number:
@@ -34,12 +52,12 @@ class InvoiceGenerator:
             
         # Business details
         business_details = [
-            ["Business Name:", "Your Business Name"],
-            ["Address:", "Your Business Address"],
-            ["Phone:", "Your Phone Number"],
-            ["Email:", "your.email@example.com"],
-            ["Invoice Number:", invoice_number],
-            ["Date:", date],
+            [Paragraph("Business Name:", self.normal_style), Paragraph("Your Business Name", self.normal_style)],
+            [Paragraph("Address:", self.normal_style), Paragraph("Your Business Address", self.normal_style)],
+            [Paragraph("Phone:", self.normal_style), Paragraph("Your Phone Number", self.normal_style)],
+            [Paragraph("Email:", self.normal_style), Paragraph("your.email@example.com", self.normal_style)],
+            [Paragraph("Invoice Number:", self.normal_style), Paragraph(invoice_number, self.normal_style)],
+            [Paragraph("Date:", self.normal_style), Paragraph(date, self.normal_style)],
         ]
         
         # Create business details table
@@ -49,40 +67,69 @@ class InvoiceGenerator:
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
+            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
         ]))
         elements.append(business_table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 30))
         
-        # Add items table
-        items_data = [
-            ["Item", "Quantity", "Price", "Total"],
-            [item_name, str(quantity), f"₹{price}", f"₹{quantity * price}"]
+        # Add items table header
+        header_data = [
+            [Paragraph("Item", self.header_style),
+             Paragraph("Quantity", self.header_style),
+             Paragraph("Price", self.header_style),
+             Paragraph("Total", self.header_style)]
         ]
         
+        # Add items data
+        items_data = header_data + [
+            [Paragraph(item_name, self.normal_style),
+             Paragraph(str(quantity), self.normal_style),
+             Paragraph(f"₹{price:,}", self.normal_style),
+             Paragraph(f"₹{quantity * price:,}", self.normal_style)]
+        ]
+        
+        # Create items table
         items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
         items_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
         ]))
         elements.append(items_table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 30))
         
         # Add total
-        total_data = [["Total Amount:", f"₹{quantity * price}"]]
+        total_data = [[
+            Paragraph("Total Amount:", self.total_style),
+            Paragraph(f"₹{quantity * price:,}", self.total_style)
+        ]]
         total_table = Table(total_data, colWidths=[4*inch, 3*inch])
         total_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
             ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
         ]))
         elements.append(total_table)
+        
+        # Add footer
+        elements.append(Spacer(1, 50))
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            textColor=colors.grey,
+            alignment=1
+        )
+        elements.append(Paragraph("Thank you for your business!", footer_style))
         
         # Build the PDF
         doc.build(elements)
