@@ -5,6 +5,9 @@ from flask import Flask, request, jsonify
 import requests
 from dotenv import load_dotenv
 import google.generativeai as genai
+from invoice_generator import InvoiceGenerator
+import re
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -17,6 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+invoice_gen = InvoiceGenerator()
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -25,7 +29,7 @@ TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-05-20")
+model = genai.GenerativeModel('gemini-pro')
 
 # Vyapari character system prompt
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) with the following characteristics:
@@ -41,6 +45,20 @@ VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) with the fol
 - You often end your advice with encouraging phrases like "Aap kar sakte hain", "Koi baat nahi, try karte raho"
 - Answer in concise manner
 Remember to maintain this character in all your responses while being helpful and informative."""
+
+def extract_invoice_details(text):
+    """Extract invoice details from text using regex"""
+    # Pattern: "X item_name sold for rupees Y on Z"
+    pattern = r"(\d+)\s+([^f]+?)\s+sold\s+for\s+rupees\s+(\d+)\s+on\s+(.+)"
+    match = re.search(pattern, text.lower())
+    
+    if match:
+        quantity = int(match.group(1))
+        item_name = match.group(2).strip()
+        price = int(match.group(3))
+        date = match.group(4).strip()
+        return quantity, item_name, price, date
+    return None
 
 def send_telegram_message(chat_id, text):
     """Send a message to a specific Telegram chat."""
@@ -72,30 +90,65 @@ def get_gemini_response(prompt):
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """Handle incoming webhook requests from Telegram."""
     try:
         update = request.get_json()
         
-        # Extract message information
-        message = update.get('message', {})
-        chat_id = message.get('chat', {}).get('id')
+        if 'message' not in update:
+            return 'OK'
+            
+        message = update['message']
+        chat_id = message['chat']['id']
         text = message.get('text', '')
         
-        if not chat_id or not text:
-            return jsonify({"status": "error", "message": "Invalid message format"}), 400
+        # Extract invoice details
+        details = extract_invoice_details(text)
         
-        # Get response from Gemini
-        response_text = get_gemini_response(text)
-        
-        # Send response back to Telegram
-        if send_telegram_message(chat_id, response_text):
-            return jsonify({"status": "success"}), 200
-        else:
-            return jsonify({"status": "error", "message": "Failed to send response"}), 500
+        if details:
+            quantity, item_name, price, date = details
+            # Generate invoice
+            invoice_file = invoice_gen.generate_invoice(
+                item_name=item_name,
+                quantity=quantity,
+                price=price,
+                date=date
+            )
             
+            # Send invoice as document
+            send_document(chat_id, invoice_file)
+            
+            # Cleanup
+            invoice_gen.cleanup(invoice_file)
+            
+            return 'OK'
+            
+        # If not an invoice request, use Gemini
+        response = model.generate_content(text)
+        send_message(chat_id, response.text)
+        
+        return 'OK'
+        
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return 'Error', 500
+
+def send_message(chat_id, text):
+    """Send message to Telegram chat"""
+    url = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage"
+    data = {
+        'chat_id': chat_id,
+        'text': text
+    }
+    response = requests.post(url, json=data)
+    return response.json()
+
+def send_document(chat_id, file_path):
+    """Send document to Telegram chat"""
+    url = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendDocument"
+    with open(file_path, 'rb') as file:
+        files = {'document': file}
+        data = {'chat_id': chat_id}
+        response = requests.post(url, data=data, files=files)
+    return response.json()
 
 @app.route('/health', methods=['GET'])
 def health_check():
