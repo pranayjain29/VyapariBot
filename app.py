@@ -32,7 +32,7 @@ TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+model = genai.GenerativeModel('gemini-pro')
 
 # Vyapari character system prompt
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) with the following characteristics:
@@ -107,25 +107,37 @@ async def webhook():
         is_invoice, details = await invoice_agent.analyze_message(text)
         
         if is_invoice and details:
-            # Generate invoice
-            invoice_file = invoice_gen.generate_invoice(
-                item_name=details['item_name'],
-                quantity=details['quantity'],
-                price=details['price'],
-                date=details['date']
-            )
-            
-            # Send invoice as document
-            send_document(chat_id, invoice_file)
-            
-            # Cleanup
-            invoice_gen.cleanup(invoice_file)
+            try:
+                # Generate invoice
+                invoice_file = invoice_gen.generate_invoice(
+                    item_name=details['item_name'],
+                    quantity=details['quantity'],
+                    price=details['price'],
+                    date=details['date']
+                )
+                
+                # Send invoice as document
+                send_document(chat_id, invoice_file)
+                
+                # Cleanup
+                invoice_gen.cleanup(invoice_file)
+                
+                # Send confirmation message
+                send_telegram_message(chat_id, "✅ Invoice generated successfully!")
+                
+            except Exception as e:
+                logger.error(f"Error generating invoice: {str(e)}")
+                send_telegram_message(chat_id, "❌ Sorry, there was an error generating the invoice. Please try again.")
             
             return 'OK'
             
         # If not an invoice request, use Gemini
-        response = model.generate_content(text)
-        send_message(chat_id, response.text)
+        try:
+            response = model.generate_content(text)
+            send_telegram_message(chat_id, response.text)
+        except Exception as e:
+            logger.error(f"Error getting Gemini response: {str(e)}")
+            send_telegram_message(chat_id, "❌ Sorry, I'm having trouble processing your request. Please try again.")
         
         return 'OK'
         
