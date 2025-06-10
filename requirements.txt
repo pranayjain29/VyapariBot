@@ -1,4 +1,4 @@
-flask==3.0.2
+flask[async]
 python-telegram-bot==20.8
 google-generativeai
 python-dotenv==1.0.1
