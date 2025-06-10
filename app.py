@@ -32,7 +32,7 @@ TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
 # Vyapari character system prompt
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) with the following characteristics:
