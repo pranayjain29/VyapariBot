@@ -74,18 +74,18 @@ def send_telegram_message(chat_id, text):
         return False
 
 @function_tool
-def handle_invoice_request(chat_id: int, details: dict):
+def handle_invoice_request(chat_id: int, item_name: str, quantity: int, price: float, date: str) -> str:
     """Handles the invoice generation and sending process.
-    Details is a dictionary that expects: item_name, quantity, price, date.
+    Generates and sends an invoice based on item details.
     """
     
     try:
         # Generate invoice
         invoice_file = generate_invoice(
-            item_name=details['item_name'],
-            quantity=details['quantity'],
-            price=details['price'],
-            date=details['date']
+ item_name=item_name,
+ quantity=quantity,
+ price=price,
+ date=date
         )
 
         # Send invoice as document
@@ -97,12 +97,11 @@ def handle_invoice_request(chat_id: int, details: dict):
         except:
             pass
 
-        # Send confirmation message
-        send_telegram_message(chat_id, "✅ Invoice generated successfully!")
+        return "✅ Invoice generated successfully!"
 
     except Exception as e:
         logger.error(f"Error generating invoice: {str(e)}")
-        send_telegram_message(chat_id, "❌ Sorry, there was an error generating the invoice. Please try again.")
+        return "❌ Sorry, there was an error generating the invoice. Please try again."
 
 
 @app.route('/webhook', methods=['POST'])
@@ -120,7 +119,8 @@ async def webhook():
         Vyapari_Agent = Agent(
                 name="Vyapari", 
                 instructions=VYAPARI_PROMPT, 
-                model=model)
+                model=model,
+                tools=[handle_invoice_request])
 
         print("Created Vyapari Agent")
         with trace("Vyapari Agent"):
