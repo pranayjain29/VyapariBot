@@ -4,7 +4,6 @@ import logging
 from flask import Flask, request, jsonify
 import requests
 from dotenv import load_dotenv
-import google.generativeai as genai
 from openai import  AsyncOpenAI
 
 from tools_util import generate_invoice
