@@ -2,10 +2,9 @@ gunicorn
 flask[async]
 python-dotenv
 openai
-openai-agents
+openai-agents==0.0.17
 
 python-telegram-bot
 requests
 reportlab
 aiohttp
-pydantic
