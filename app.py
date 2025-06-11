@@ -5,11 +5,14 @@ from flask import Flask, request, jsonify
 import requests
 from dotenv import load_dotenv
 import google.generativeai as genai
-from invoice_generator import InvoiceGenerator
-from agents import InvoiceAgent
+from openai import  AsyncOpenAI
+
+from tools_util import generate_invoice
 import re
 from datetime import datetime
 import asyncio
+from agents import Agent, Runner, trace, function_tool
+from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 
 # Load environment variables
 load_dotenv()
@@ -22,46 +25,37 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-invoice_gen = InvoiceGenerator()
-invoice_agent = InvoiceAgent()
+
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+gemini_client = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY)
+model = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client)
 
 # Vyapari character system prompt
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) with the following characteristics:
 - You speak Hindi, English or a mix of Hindi and English (Hinglish) with a business-oriented mindset
-- You have 30+ years of experience in traditional Indian business
-- You're known for your practical wisdom and street-smart business advice
 - You use typical Indian business phrases and proverbs
 - You're direct, honest, and sometimes use a bit of humor
-- You often share real-world business examples from Indian context
-- You're respectful but straightforward in your communication
 - You use terms like "behenji", "bhai", "dost" when appropriate and occassionally.
-- You're knowledgeable about both traditional and modern business practices
-- You often end your advice with encouraging phrases like "Aap kar sakte hain", "Koi baat nahi, try karte raho"
-- Answer in concise manner
-Remember to maintain this character in all your responses while being helpful and informative."""
+Remember to maintain this character in all your responses while being helpful and informative.
 
-def extract_invoice_details(text):
-    """Extract invoice details from text using regex"""
-    # Pattern: "X item_name sold for rupees Y on Z"
-    pattern = r"(\d+)\s+([^f]+?)\s+sold\s+for\s+rupees\s+(\d+)\s+on\s+(.+)"
-    match = re.search(pattern, text.lower())
-    
-    if match:
-        quantity = int(match.group(1))
-        item_name = match.group(2).strip()
-        price = int(match.group(3))
-        date = match.group(4).strip()
-        return quantity, item_name, price, date
-    return None
+Given the message/text of the user you have to identify if the text is a sales/purchase details or not.
+If the message contains sales/purchase details, extract the following information:
+- item_name: The name of the item/product
+- quantity: The number of items (must be a number)
+- price: The price per item (must be a number)
+- date: The date of the transaction (if not specified, use today's date)
+
+If it is a sales/purchase details, generate the invoice using handle_invoice_request tool, otherwise simply respond to the text.
+"""
+
 
 def send_telegram_message(chat_id, text):
     """Send a message to a specific Telegram chat."""
@@ -80,16 +74,37 @@ def send_telegram_message(chat_id, text):
         logger.error(f"Failed to send Telegram message: {str(e)}")
         return False
 
-def get_gemini_response(prompt):
-    """Get response from Gemini API with Vyapari character."""
+@function_tool
+def handle_invoice_request(chat_id: int, details: dict):
+    """Handles the invoice generation and sending process.
+    Details is a dictionary that expects: item_name, quantity, price, date.
+    """
+    
     try:
-        # Combine the system prompt with the user's message
-        full_prompt = f"{VYAPARI_PROMPT}\n\nUser message: {prompt}\n\nRespond as a Vyapari:"
-        response = model.generate_content(full_prompt)
-        return response.text
+        # Generate invoice
+        invoice_file = generate_invoice(
+            item_name=details['item_name'],
+            quantity=details['quantity'],
+            price=details['price'],
+            date=details['date']
+        )
+
+        # Send invoice as document
+        send_document(chat_id, invoice_file)
+
+        # Cleanup
+        try:
+            os.remove(invoice_file)
+        except:
+            pass
+
+        # Send confirmation message
+        send_telegram_message(chat_id, "✅ Invoice generated successfully!")
+
     except Exception as e:
-        logger.error(f"Failed to get Gemini response: {str(e)}")
-        return "Arre yaar, thoda technical problem ho gaya hai. Thodi der baad try karna."
+        logger.error(f"Error generating invoice: {str(e)}")
+        send_telegram_message(chat_id, "❌ Sorry, there was an error generating the invoice. Please try again.")
+
 
 @app.route('/webhook', methods=['POST'])
 async def webhook():
@@ -102,45 +117,18 @@ async def webhook():
         message = update['message']
         chat_id = message['chat']['id']
         text = message.get('text', '')
-        
-        # Use agent to analyze message
-        is_invoice, details = await invoice_agent.analyze_message(text)
-        
-        if is_invoice and details:
-            try:
-                # Generate invoice
-                invoice_file = invoice_gen.generate_invoice(
-                    item_name=details['item_name'],
-                    quantity=details['quantity'],
-                    price=details['price'],
-                    date=details['date']
-                )
-                
-                # Send invoice as document
-                send_document(chat_id, invoice_file)
-                
-                # Cleanup
-                invoice_gen.cleanup(invoice_file)
-                
-                # Send confirmation message
-                send_telegram_message(chat_id, "✅ Invoice generated successfully!")
-                
-            except Exception as e:
-                logger.error(f"Error generating invoice: {str(e)}")
-                send_telegram_message(chat_id, "❌ Sorry, there was an error generating the invoice. Please try again.")
+
+        Vyapari_Agent = Agent(
+                name="Vyapari", 
+                instructions=VYAPARI_PROMPT, 
+                model=model)
+
+        print("Created Vyapari Agent")
+        with trace("Vyapari Agent"):
+            response = await Runner.run(Vyapari_Agent, text)
+
+        send_telegram_message(chat_id, response.final_output)
             
-            return 'OK'
-            
-        # If not an invoice request, use Gemini
-        try:
-            response = model.generate_content(text)
-            send_telegram_message(chat_id, response.text)
-        except Exception as e:
-            logger.error(f"Error getting Gemini response: {str(e)}")
-            send_telegram_message(chat_id, "❌ Sorry, I'm having trouble processing your request. Please try again.")
-        
-        return 'OK'
-        
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
         return 'Error', 500
