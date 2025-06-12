@@ -118,6 +118,8 @@ async def webhook():
         print(type(chat_id))
         text = message.get('text', '')
 
+        VYAPARI_PROMPT += f"Chat id is: {chat_id}"
+        
         Vyapari_Agent = Agent(
                 name="Vyapari", 
                 instructions=VYAPARI_PROMPT, 
