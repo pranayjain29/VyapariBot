@@ -114,6 +114,8 @@ async def webhook():
             
         message = update['message']
         chat_id = message['chat']['id']
+        print(chat_id)
+        print(type(chat_id))
         text = message.get('text', '')
 
         Vyapari_Agent = Agent(
@@ -128,7 +130,7 @@ async def webhook():
 
         send_telegram_message(chat_id, response.final_output)
         return 'OK'
-        
+
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
         return 'Error', 500
