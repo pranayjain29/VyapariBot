@@ -127,7 +127,8 @@ async def webhook():
             response = await Runner.run(Vyapari_Agent, text)
 
         send_telegram_message(chat_id, response.final_output)
-            
+        return 'OK'
+        
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
         return 'Error', 500
