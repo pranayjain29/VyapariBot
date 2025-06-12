@@ -107,6 +107,7 @@ def handle_invoice_request(chat_id: int, item_name: str, quantity: int, price: f
 @app.route('/webhook', methods=['POST'])
 async def webhook():
     try:
+        global VYAPARI_PROMPT
         update = request.get_json()
         
         if 'message' not in update:
@@ -119,7 +120,7 @@ async def webhook():
         text = message.get('text', '')
 
         VYAPARI_PROMPT += f"Chat id is: {chat_id}"
-        
+
         Vyapari_Agent = Agent(
                 name="Vyapari", 
                 instructions=VYAPARI_PROMPT, 
