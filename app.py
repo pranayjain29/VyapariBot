@@ -200,7 +200,7 @@ Identify specific report type:
   * English query → English response
   * Hindi query → Hindi response  
   * Hinglish query → Hinglish response
-  
+
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 """
 
@@ -256,10 +256,10 @@ def handle_invoice_request(chat_id: int, item_name: str, quantity: int, price: f
 @app.route('/webhook', methods=['POST'])
 async def webhook():
     try:
-        # global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
-        VYAPARI_PROMPT = VYAPARI_PROMPT
-        INVOICE_PROMPT = INVOICE_PROMPT
-        REPORT_PROMPT = REPORT_PROMPT
+        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
+        Vyapari_PROMPT = VYAPARI_PROMPT
+        Invoice_PROMPT = INVOICE_PROMPT
+        Report_PROMPT = REPORT_PROMPT
         update = request.get_json()
         
         if 'message' not in update:
@@ -271,25 +271,25 @@ async def webhook():
         print(type(chat_id))
         text = message.get('text', '')
 
-        VYAPARI_PROMPT += f"Chat id is: {chat_id}"
-        INVOICE_PROMPT += f"Chat id is: {chat_id}"
-        REPORT_PROMPT += f"Chat id is: {chat_id}"
+        Vyapari_PROMPT += f"Chat id is: {chat_id}"
+        Invoice_PROMPT += f"Chat id is: {chat_id}"
+        Report_PROMPT += f"Chat id is: {chat_id}"
 
         Invoice_Agent = Agent(
                 name="Invoice Generator", 
-                instructions=INVOICE_PROMPT, 
+                instructions=Invoice_PROMPT, 
                 model=model,
                 tools=[handle_invoice_request, write_transaction])
 
         Report_Agent = Agent(
                 name="Report Generator", 
-                instructions=REPORT_PROMPT, 
+                instructions=Report_PROMPT, 
                 model=model,
                 tools=[read_transactions])
 
         Vyapari_Agent = Agent(
                 name="Vyapari", 
-                instructions=VYAPARI_PROMPT, 
+                instructions=Vyapari_PROMPT, 
                 model=model,
                 handoffs=[Invoice_Agent, Report_Agent])
 
