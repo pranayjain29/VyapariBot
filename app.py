@@ -54,7 +54,7 @@ If the message contains sales/purchase details, extract the following informatio
 - item_name: The name of the item/product
 - quantity: The number of items (must be a number)
 - price: The price per item (must be a number)
-- date: The date of the transaction (if not specified, use today's date)
+- date: The date of the transaction (if not specified, use today's date) in date format
 - payment method: cash, credit, gpay, etc. By default cash.
 - currency: by default cash.
 Then, generate the invoice using handle_invoice_request tool, otherwise simply respond to the text.
