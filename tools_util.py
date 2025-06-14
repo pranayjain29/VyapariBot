@@ -5,8 +5,55 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from supabase import create_client, Client
 import os
+from agents import Agent, Runner, trace, function_tool
+
+# Initialize Supabase client
+url: str = os.environ.get("SUPABASE_URL_KEY")
+key: str = os.environ.get("SUPABASE_API_KEY")
+supabase: Client = create_client(url, key)
+
+print("Supabase client created")
+
+@function_tool
+def read_transactions(chat_id: int):
+    """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
+    try:
+        response = supabase.table('vyapari_transactions').select('*').eq('chat_id', str(chat_id)).execute()
+        # Convert chat_id back to integer for consistency if needed elsewhere,
+        # but the data from DB will have it as string based on how it's stored.
+        # For this function, we just return the data as is from the DB.
+        return response.data
+    except Exception as e:
+        print(f"Error reading transactions: {e}")
+        return None
+
+@function_tool
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
+    """Writes/Stores a new transaction to the 'vyapari_transactions' table."""
+    try:
+        # Get current time in IST (UTC+5:30)
+        ist = timezone(timedelta(hours=5, minutes=30))
+        now_ist = datetime.now(ist)
+
+        data = {
+            "chat_id": str(chat_id),  # Store chat_id as string
+            "item_name": item_name,
+            "quantity": quantity,
+            "price_per_unit": price_per_unit,
+            "total_price": total_price,
+            "raw_message": raw_message,
+            "payment_method": payment_method,
+            "currency": currency,
+            "inserted_at": now_ist.isoformat()
+        }
+        response = supabase.table('vyapari_transactions').insert(data).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error writing transaction: {e}")
+        return None
 
 # Enhanced styles for professional Indian invoice
 styles = getSampleStyleSheet()
@@ -186,8 +233,8 @@ def generate_invoice(
         [Paragraph("S.No.", table_header_style),
          Paragraph("Description", table_header_style),
          Paragraph("Qty", table_header_style),
-         Paragraph("Rate (₹)", table_header_style),
-         Paragraph("Amount (₹)", table_header_style)]
+         Paragraph("Rate (INR.)", table_header_style),
+         Paragraph("Amount (INR.)", table_header_style)]
     ]
     
     # Calculate amounts
@@ -260,11 +307,11 @@ def generate_invoice(
     # Total section
     total_data = [
         [Paragraph("<b>Subtotal:</b>", total_amount_style), 
-         Paragraph(f"₹ {line_total:,.2f}", total_amount_style)],
+         Paragraph(f"INR. {line_total:,.2f}", total_amount_style)],
         [Paragraph("<b>Total Tax:</b>", total_amount_style), 
-         Paragraph(f"₹ {total_tax:,.2f}", total_amount_style)],
+         Paragraph(f"INR. {total_tax:,.2f}", total_amount_style)],
         [Paragraph("<b>Grand Total:</b>", total_amount_style), 
-         Paragraph(f"₹ {grand_total:,.2f}", total_amount_style)]
+         Paragraph(f"INR. {grand_total:,.2f}", total_amount_style)]
     ]
     
     total_table = Table(total_data, colWidths=[5*inch, 2*inch])

@@ -6,7 +6,7 @@ import requests
 from dotenv import load_dotenv
 from openai import  AsyncOpenAI
 
-from tools_util import generate_invoice
+import tools_util
 import re
 from datetime import datetime
 import asyncio
@@ -45,14 +45,21 @@ VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) with the fol
 - You use terms like "behenji", "bhai", "dost" when appropriate and occassionally.
 Remember to maintain this character in all your responses while being helpful and informative.
 
-Given the message/text of the user you have to identify if the text is a sales/purchase details or not.
+Given the message/text of the user you have to identify if the text is a sales/purchase details (to generate an invoice),
+regarding reading the details of previous transactions, or simply a text.
+
 If the message contains sales/purchase details, extract the following information:
 - item_name: The name of the item/product
 - quantity: The number of items (must be a number)
 - price: The price per item (must be a number)
 - date: The date of the transaction (if not specified, use today's date)
+- payment method: cash, credit, gpay, etc. By default cash.
+- currency: by default cash.
+Then, generate the invoice using handle_invoice_request tool, otherwise simply respond to the text.
+After generating invoice, use write_transaction to record the transaction.
 
-If it is a sales/purchase details, generate the invoice using handle_invoice_request tool, otherwise simply respond to the text.
+If the message is related to previous transactions or transaction history, then
+use tool read_transaction to read the previous business transactions.
 """
 
 
@@ -125,7 +132,7 @@ async def webhook():
                 name="Vyapari", 
                 instructions=VYAPARI_PROMPT, 
                 model=model,
-                tools=[handle_invoice_request])
+                tools=[handle_invoice_request, read_transactions, write_transaction])
 
         print("Created Vyapari Agent")
         with trace("Vyapari Agent"):
