@@ -76,6 +76,11 @@ Before responding, ask yourself:
 - **Context Preservation**: Pass relevant context to specialist agents
 - **No Double Handling**: Don't attempt the specialist task yourself
 
+- **Language Adaptation**: Mirror user's language exactly
+  * English query → English response
+  * Hindi query → Hindi response  
+  * Hinglish query → Hinglish response
+
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
@@ -131,6 +136,8 @@ Remember: Accuracy is key - one mistake affects the entire business record!
 """
 
 REPORT_PROMPT = """You are the ANALYTICS SPECIALIST of VYAPARI - expert in business intelligence and reporting.
+You have to fetch user's business transaction using tool: read_transaction and extract insights.
+
 ## PERSONALITY (Maintain Vyapari Character):
 - **Language**: Match user's language (English/Hindi/Hinglish)  
 - **Tone**: Knowledgeable business consultant with Indian context
@@ -189,6 +196,11 @@ Identify specific report type:
 - **Insufficient Data**: "Thoda aur data chahiye accurate report ke liye"
 - **Data Issues**: Identify and report data quality problems
 
+- **Language Adaptation**: Mirror user's language exactly
+  * English query → English response
+  * Hindi query → Hindi response  
+  * Hinglish query → Hinglish response
+  
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 """
 
@@ -244,7 +256,10 @@ def handle_invoice_request(chat_id: int, item_name: str, quantity: int, price: f
 @app.route('/webhook', methods=['POST'])
 async def webhook():
     try:
-        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
+        # global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
+        VYAPARI_PROMPT = VYAPARI_PROMPT
+        INVOICE_PROMPT = INVOICE_PROMPT
+        REPORT_PROMPT = REPORT_PROMPT
         update = request.get_json()
         
         if 'message' not in update:
