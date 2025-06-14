@@ -32,7 +32,8 @@ def read_transactions(chat_id: int):
 
 @function_tool
 def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
-    """Writes/Stores a new transaction to the 'vyapari_transactions' table."""
+    """Writes/Stores a new transaction to the 'vyapari_transactions' table.
+        Expects invoice_date field in yyyy-MM-dd format. """
     try:
         # Convert date string to datetime object if it's a string
         date_obj = datetime.fromisoformat(invoice_date) if isinstance(invoice_date, str) else invoice_date
@@ -46,7 +47,8 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "raw_message": raw_message,
             "payment_method": payment_method,
             "currency": currency,
-            "date": date_obj.isoformat()
+            "inserted_at": datetime.now(timezone.utc).isoformat(),
+            "invoice_date": date_obj.isoformat()
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
         return response.data
