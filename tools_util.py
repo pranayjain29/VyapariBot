@@ -31,12 +31,14 @@ def read_transactions(chat_id: int):
         return None
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', date: datetime = datetime.now()):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table."""
     try:
+        # Convert date string to datetime object if it's a string
+        date_obj = datetime.fromisoformat(invoice_date) if isinstance(invoice_date, str) else invoice_date
 
         data = {
-            "chat_id": str(chat_id),  # Store chat_id as string
+            "chat_id": str(chat_id), # Store chat_id as string
             "item_name": item_name,
             "quantity": quantity,
             "price_per_unit": price_per_unit,
@@ -44,7 +46,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "raw_message": raw_message,
             "payment_method": payment_method,
             "currency": currency,
-            "date": date.isoformat()
+            "date": date_obj.isoformat()
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
         return response.data
