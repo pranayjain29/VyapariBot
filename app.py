@@ -208,14 +208,8 @@ Identify specific report type:
 - **Insufficient Data**: "Thoda aur data chahiye accurate report ke liye"
 - **Data Issues**: Identify and report data quality problems
 
-- **Language Adaptation**: Mirror user's language exactly
-  * English query → English response
-  * Hindi query → Hindi response  
-  * Hinglish query → Hinglish response
-
 ### FORMATTING:
-- ** You should generate only HTML code for the report as parser is set to HTML.
-- ** DO NOT GENERATE ANYTHING EXCEPT HTML. NO TEXTS, NOTHING.
+- ** You should generate the report in Markdown format.
 
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
@@ -230,7 +224,7 @@ def send_telegram_message(chat_id, text):
             json={
                 "chat_id": chat_id,
                 "text": text,
-                "parse_mode": "HTML"
+                "parse_mode": "Markdown"
             }
         )
         response.raise_for_status()
