@@ -31,12 +31,9 @@ def read_transactions(chat_id: int):
         return None
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', date: datetime = datetime.now()):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table."""
     try:
-        # Get current time in IST (UTC+5:30)
-        ist = timezone(timedelta(hours=5, minutes=30))
-        now_ist = datetime.now(ist)
 
         data = {
             "chat_id": str(chat_id),  # Store chat_id as string
@@ -47,7 +44,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "raw_message": raw_message,
             "payment_method": payment_method,
             "currency": currency,
-            "inserted_at": now_ist.isoformat()
+            "date": date.isoformat()
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
         return response.data
