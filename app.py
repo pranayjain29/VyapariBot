@@ -57,8 +57,8 @@ If the message contains sales/purchase details, extract the following informatio
 - date: The date of the transaction (if not specified, use today's date) in text format yyyy-MM-dd
 - payment method: cash, credit, gpay, etc. By default cash.
 - currency: by default cash.
-Then, generate the invoice using handle_invoice_request tool, otherwise simply respond to the text.
-After generating invoice, use write_transaction to record the transaction.
+First, Generate the invoice using handle_invoice_request tool.
+Then, after generating invoice, use write_transaction to record the transaction.
 
 If the message is related to previous transactions or transaction history:
 - use tool read_transaction to read the previous business transactions of that chat to provide answer to the user query.
