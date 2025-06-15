@@ -191,7 +191,50 @@ def generate_invoice(
     if not invoice_number:
         invoice_number = f"INV/{datetime.now().strftime('%Y-%m')}/{datetime.now().strftime('%d%H%M')}"
 
-    # -------------- company, header, customer sections remain unchanged --------------
+
+    # Company header section
+    elements.append(Paragraph(company_name, company_style))
+    elements.append(Paragraph("TAX INVOICE", invoice_title_style))
+    elements.append(Spacer(1, 15))
+    
+    # Create header table with company and invoice details
+    header_data = [
+        [Paragraph("<b>From:</b>", section_header_style), 
+         Paragraph("<b>Invoice Details:</b>", section_header_style)],
+        [Paragraph(f"{company_name}<br/>{company_address}<br/>{company_city}<br/>Phone: {company_phone}<br/>Email: {company_email}", content_style),
+         Paragraph(f"<b>Invoice No:</b> {invoice_number}<br/><b>Date:</b> {date}<br/><b>GSTIN:</b> {company_gstin}<br/><b>PAN:</b> {company_pan}", content_style)]
+    ]
+    
+    header_table = Table(header_data, colWidths=[4*inch, 3*inch])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f7fafc')),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 20))
+    
+    # Billing details
+    billing_header = Paragraph("<b>Bill To:</b>", section_header_style)
+    elements.append(billing_header)
+    
+    customer_info = f"{customer_name}<br/>{customer_address}<br/>{customer_city}"
+    if customer_gstin:
+        customer_info += f"<br/>GSTIN: {customer_gstin}"
+    
+    customer_table = Table([[Paragraph(customer_info, content_style)]], colWidths=[7*inch])
+    customer_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f7fafc')),
+    ]))
+    elements.append(customer_table)
+    elements.append(Spacer(1, 20))
 
     # … existing header & customer code …
 
