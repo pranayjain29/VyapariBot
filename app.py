@@ -99,10 +99,7 @@ PROCESSING WORKFLOW:
 - Validate Required Fields.
 
 ### STEP 2: INVOICE GENERATION
-- `items` parameter must be an iterable of dicts with keys:
-        - name : str   (description)
-        - qty  : int/float
-        - rate : float (price per unit)
+- Generates Invoices. Accept parallel lists for item name, quantity, and price.
 - Use `handle_invoice_request` tool ONCE for all items
 - Include ALL transaction items in single invoice
 
@@ -214,22 +211,30 @@ def send_telegram_message(chat_id, text):
 @function_tool
 def handle_invoice_request(
     chat_id: int,
-    items: List[Dict[str, Union[str, int, float]]],  # [{'name': str, 'qty': int|float, 'rate': float}, …]
+    item_names: List[str],
+    quantities: List[int],
+    prices: List[float],
     date: str
 ) -> str:
     """
-    Generate a professional GST invoice that can contain multiple line-items.
-    `items` must be an iterable of dicts with keys:
-        - name : str   (description)
-        - qty  : int/float
-        - rate : float (price per unit)
+    Generates Invoices.
+    Accept parallel lists for item name, quantity, and price.
     """
-    
     try:
-        # Generate invoice
+        # Basic length check to avoid mis-aligned rows
+        if not (len(item_names) == len(quantities) == len(prices)):
+            raise ValueError("item_names, quantities, and prices must have the same length")
+
+        # Build the structure expected by generate_invoice
+        items = [
+            {"name": n, "qty": q, "rate": p}
+            for n, q, p in zip(item_names, quantities, prices)
+        ]
+
+        # Call the updated invoice generator
         invoice_file, invoice_number = generate_invoice(
-        items=items,
-        date=date
+            items=items,
+            date=date
         )
 
         # Send invoice as document
