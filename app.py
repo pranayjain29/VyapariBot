@@ -197,8 +197,7 @@ def send_telegram_message(chat_id, text):
             f"{TELEGRAM_API_URL}/sendMessage",
             json={
                 "chat_id": chat_id,
-                "text": text,
-                "parse_mode": None
+                "text": text
             }
         )
         response.raise_for_status()
@@ -289,15 +288,6 @@ async def webhook():
         logger.error(f"Error processing webhook: {str(e)}")
         return 'Error', 500
 
-def send_message(chat_id, text):
-    """Send message to Telegram chat"""
-    url = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage"
-    data = {
-        'chat_id': chat_id,
-        'text': text
-    }
-    response = requests.post(url, json=data)
-    return response.json()
 
 def send_document(chat_id, file_path):
     """Send document to Telegram chat"""
