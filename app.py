@@ -209,7 +209,13 @@ Identify specific report type:
 - **Data Issues**: Identify and report data quality problems
 
 ### FORMATTING:
-- ** You should generate the report in Markdown format.
+- ** You should generate the report in Text format.
+Formatting:
+Bold: Enclose the text with double asterisks: **bold text**.
+Italic: Use single underscores or asterisks: _italic text_ or *italic text*.
+Underline: Use double underscores: __underlined text__.
+Strikethrough: Use double tildes: ~~strikethrough text~~.
+Spoiler: Use double pipes: ||spoiler text||
 
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
@@ -223,8 +229,8 @@ def send_telegram_message(chat_id, text):
             f"{TELEGRAM_API_URL}/sendMessage",
             json={
                 "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "Markdown"
+                "text": text
+                # "parse_mode": "Markdown"
             }
         )
         response.raise_for_status()
