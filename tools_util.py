@@ -31,7 +31,7 @@ def read_transactions(chat_id: int):
         return None
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
     try:
@@ -48,7 +48,8 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "payment_method": payment_method,
             "currency": currency,
             "inserted_at": datetime.now(timezone.utc).isoformat(),
-            "invoice_date": date_obj.isoformat()
+            "invoice_date": date_obj.isoformat(),
+            "invoice_number" : invoice_number
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
         return response.data
@@ -139,6 +140,10 @@ footer_style = ParagraphStyle(
     alignment=1,
     spaceAfter=5
 )
+
+def number_to_words(num):
+        # Simplified version - you might want to use a library like 'num2words'
+        return f"Rupees {num:,.2f} Only"
 
 def generate_invoice(
     # Item details
@@ -328,9 +333,6 @@ def generate_invoice(
     elements.append(total_table)
     
     # Amount in words
-    def number_to_words(num):
-        # Simplified version - you might want to use a library like 'num2words'
-        return f"Rupees {num:,.2f} Only"
     
     elements.append(Spacer(1, 15))
     amount_words = Paragraph(f"<b>Amount in Words:</b> {number_to_words(grand_total)}", 
@@ -369,5 +371,5 @@ def generate_invoice(
     
     # Build the PDF
     doc.build(elements)
-    print(f"Invoice generated successfully: {filename}")
-    return filename
+    print(f"Invoice generated successfully: {filename} {invoice_number}")
+    return filename, invoice_number
