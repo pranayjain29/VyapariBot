@@ -98,6 +98,10 @@ PROCESSING WORKFLOW:
 - Validate Required Fields.
 
 ### STEP 2: INVOICE GENERATION
+- `items` parameter must be an iterable of dicts with keys:
+        - name : str   (description)
+        - qty  : int/float
+        - rate : float (price per unit)
 - Use `handle_invoice_request` tool ONCE for all items
 - Include ALL transaction items in single invoice
 
@@ -208,16 +212,18 @@ def send_telegram_message(chat_id, text):
 
 @function_tool
 def handle_invoice_request(chat_id: int, item_name: str, quantity: int, price: float, date: str) -> str:
-    """Handles the invoice generation and sending process.
-    Generates and sends an invoice based on item details.
+    """
+    Generate a professional GST invoice that can contain multiple line-items.
+    `items` must be an iterable of dicts with keys:
+        - name : str   (description)
+        - qty  : int/float
+        - rate : float (price per unit)
     """
     
     try:
         # Generate invoice
         invoice_file, invoice_number = generate_invoice(
-        item_name=item_name,
-        quantity=quantity,
-        price=price,
+        items=items,
         date=date
         )
 
