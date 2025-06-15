@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify
 import requests
 from dotenv import load_dotenv
 from openai import  AsyncOpenAI
+from typing import List, Dict, Union
 
 from tools_util import *
 import re
@@ -211,7 +212,11 @@ def send_telegram_message(chat_id, text):
         return False
 
 @function_tool
-def handle_invoice_request(chat_id: int, item_name: str, quantity: int, price: float, date: str) -> str:
+def handle_invoice_request(
+    chat_id: int,
+    items: List[Dict[str, Union[str, int, float]]],  # [{'name': str, 'qty': int|float, 'rate': float}, …]
+    date: str
+) -> str:
     """
     Generate a professional GST invoice that can contain multiple line-items.
     `items` must be an iterable of dicts with keys:

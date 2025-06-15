@@ -9,3 +9,4 @@ requests
 reportlab
 aiohttp
 supabase
+typing
