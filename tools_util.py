@@ -79,7 +79,6 @@ def read_user(chat_id: int):
     except Exception as e:
         print(f"Error reading user: {e}")
         return None
-    
 # ---------------------------------------------------------------------------
 # Helper: update the `last_updated` timestamp (and optionally user_name)
 # ---------------------------------------------------------------------------
