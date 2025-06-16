@@ -20,7 +20,7 @@ print("Supabase client created")
 # ---------------------------------------------------------------------------
 # WRITE: insert / update a single user record in table `vyapari_user`
 # ---------------------------------------------------------------------------
-def write_user(chat_id: int, user_name: str) -> Optional[Dict[str, Any]]:
+def write_user(chat_id: int, user_name: str):
     """
     Creates (or updates) a user row in `vyapari_user`.
 
@@ -64,7 +64,7 @@ def write_user(chat_id: int, user_name: str) -> Optional[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # READ: fetch a single user record by chat_id
 # ---------------------------------------------------------------------------
-def read_user(chat_id: int) -> Optional[Dict[str, Any]]:
+def read_user(chat_id: int):
     """Returns user details for the given chat_id from `vyapari_user`."""
     try:
         response = (
