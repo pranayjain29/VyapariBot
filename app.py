@@ -251,7 +251,7 @@ def handle_invoice_request(
     except Exception as e:
         logger.error(f"Error generating invoice: {str(e)}")
         return "❌ Sorry, there was an error generating the invoice. Please try again."
-
+ 
 
 @app.route('/webhook', methods=['POST'])
 async def webhook():
