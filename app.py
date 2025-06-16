@@ -256,10 +256,6 @@ def handle_invoice_request(
 @app.route('/webhook', methods=['POST'])
 async def webhook():
     try:
-        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
-        Vyapari_PROMPT = VYAPARI_PROMPT
-        Invoice_PROMPT = INVOICE_PROMPT
-        Report_PROMPT = REPORT_PROMPT
         update = request.get_json()
         
         if 'message' not in update:
@@ -267,9 +263,29 @@ async def webhook():
             
         message = update['message']
         chat_id = message['chat']['id']
+        user_name = (
+        message.get('from', {}).get('username')      # preferred: Telegram @handle
+        or message.get('from', {}).get('first_name') # fallback to first name
+        or ''                                        # default empty string
+    )
         print(chat_id)
-        print(type(chat_id))
+        print(user_name)
+
+        # ------------------------------------------------------------------
+        # 1.  Look up user; insert if not found
+        # ------------------------------------------------------------------
+        user_record = read_user(chat_id)           # returns None if absent
+        if not user_record:
+            write_user(chat_id, user_name)         # create with defaults
+        else:
+            update_last_used_date(chat_id, user_name)  # refresh timestamp / name
+
         text = message.get('text', '')
+
+        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
+        Vyapari_PROMPT = VYAPARI_PROMPT
+        Invoice_PROMPT = INVOICE_PROMPT
+        Report_PROMPT = REPORT_PROMPT
 
         Vyapari_PROMPT += f"Chat id is: {chat_id}"
         Invoice_PROMPT += f"Chat id is: {chat_id}"

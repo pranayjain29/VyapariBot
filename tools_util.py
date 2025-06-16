@@ -5,7 +5,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from supabase import create_client, Client
 import os
 from agents import Agent, Runner, trace, function_tool
@@ -16,6 +16,86 @@ key: str = os.environ.get("SUPABASE_API_KEY")
 supabase: Client = create_client(url, key)
 
 print("Supabase client created")
+
+# ---------------------------------------------------------------------------
+# WRITE: insert / update a single user record in table `vyapari_user`
+# ---------------------------------------------------------------------------
+def write_user(chat_id: int, user_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Creates (or updates) a user row in `vyapari_user`.
+
+    Business rules implemented:
+        • chat_id is stored as string in DB
+        • Default values:
+            - registered_on / last_updated : current timestamp (UTC)
+            - subscription_tier            : 'Free'
+            - plan_start                   : today's date
+            - plan_end                     : 31-Jan-2026
+            - total_transactions           : 0
+            - total_revenue                : 0
+    """
+    try:
+        now_ts = datetime.utcnow().isoformat(timespec="seconds")
+        payload = {
+            "chat_id":           str(chat_id),
+            "registered_on":     now_ts,
+            "last_updated":      now_ts,
+            "user_name":         user_name,
+            "subscription_tier": "Free",
+            "plan_start":        date.today().isoformat(),
+            "plan_end":          date(2026, 1, 31).isoformat(),   # fixed for all users
+            "total_transactions": 0,
+            "total_revenue":      0,
+        }
+
+        # upsert → insert if new, overwrite (or merge) if chat_id already exists
+        response = (
+            supabase
+            .table('vyapari_user')
+            .upsert(payload, on_conflict='chat_id')
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        print(f"Error writing user: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# READ: fetch a single user record by chat_id
+# ---------------------------------------------------------------------------
+def read_user(chat_id: int) -> Optional[Dict[str, Any]]:
+    """Returns user details for the given chat_id from `vyapari_user`."""
+    try:
+        response = (
+            supabase
+            .table('vyapari_user')
+            .select('*')
+            .eq('chat_id', str(chat_id))
+            .limit(1)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error reading user: {e}")
+        return None
+    
+# ---------------------------------------------------------------------------
+# Helper: update the `last_updated` timestamp (and optionally user_name)
+# ---------------------------------------------------------------------------
+def update_last_used_date(chat_id: int, user_name: str | None = None) -> None:
+    """
+    Refreshes `last_updated` for the given chat_id in `vyapari_user`.
+    Optionally updates user_name if a new value is supplied.
+    """
+    try:
+        payload = {"last_updated": datetime.utcnow().isoformat(timespec="seconds")}
+        if user_name:
+            payload["user_name"] = user_name
+
+        supabase.table("vyapari_user").update(payload).eq("chat_id", str(chat_id)).execute()
+    except Exception as e:
+        print(f"Error updating last_used_date: {e}")
 
 @function_tool
 def read_transactions(chat_id: int):
