@@ -96,6 +96,50 @@ def update_last_used_date(chat_id: int, user_name: str | None = None) -> None:
     except Exception as e:
         print(f"Error updating last_used_date: {e}")
 
+def update_user_data(chat_id: int, transaction_amount: float):
+    """
+    Increments total_transactions, adds `transaction_amount` to total_revenue,
+    and refreshes last_updated for the given user.
+
+    • Creates the user on-the-fly (via write_user) if they don’t already exist.
+    • Returns the Supabase response from the update / upsert call.
+    """
+    try:
+        # 1. Fetch existing user (None if not found)
+        user_record = read_user(chat_id)
+
+        # 2. If user doesn’t exist, create with defaults first
+        if not user_record:
+            # We don’t know the user’s name here; pass empty string
+            write_user(chat_id, user_name="")
+            user_record = read_user(chat_id) or {}
+
+        # 3. Derive new aggregated values
+        new_txn_count = (user_record.get("total_transactions") or 0) + 1
+        new_revenue   = float(user_record.get("total_revenue") or 0) + float(transaction_amount)
+
+        # 4. Build update payload
+        payload = {
+            "total_transactions": new_txn_count,
+            "total_revenue":      new_revenue,
+            "last_updated":       datetime.utcnow().isoformat(timespec="seconds")
+        }
+
+        # 5. Persist changes
+        response = (
+            supabase
+            .table("vyapari_user")
+            .update(payload)
+            .eq("chat_id", str(chat_id))
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        print(f"Error updating user data: {e}")
+        return None
+
 @function_tool
 def read_transactions(chat_id: int):
     """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
@@ -131,6 +175,8 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "invoice_number" : invoice_number
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
+        update_user_data(chat_id, total_price)
+        
         return response.data
     except Exception as e:
         print(f"Error writing transaction: {e}")
