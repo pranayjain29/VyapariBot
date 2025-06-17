@@ -320,18 +320,18 @@ async def webhook():
         Invoice_PROMPT += f"Chat id is: {chat_id}"
         Report_PROMPT += f"Chat id is: {chat_id}"
 
+        Invoice_Agent = Agent(
+                name="Invoice Generator", 
+                instructions=Invoice_PROMPT, 
+                model=model1,
+                tools=[handle_invoice_request])
+                
         Database_Agent = Agent(
                 name="Transaction Recorder", 
                 instructions=Record_PROMPT, 
                 model=model1,
                 tools=[write_transaction],
                 handoffs=[Invoice_Agent])
-
-        Invoice_Agent = Agent(
-                name="Invoice Generator", 
-                instructions=Invoice_PROMPT, 
-                model=model1,
-                tools=[handle_invoice_request])
 
         Report_Agent = Agent(
                 name="Report Generator", 
