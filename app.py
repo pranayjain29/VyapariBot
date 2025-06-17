@@ -29,14 +29,18 @@ app = Flask(__name__)
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY1 = os.getenv('GEMINI_API_KEY1')
+GEMINI_API_KEY2 = os.getenv('GEMINI_API_KEY2')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Configure Gemini
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-gemini_client = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY)
-model = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client)
+gemini_client1 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY1)
+model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client1)
+
+gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2)
+model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client2)
 
 # Vyapari character system prompt
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) an AI Chat bot with the following characteristics:
@@ -49,7 +53,7 @@ PERSONALITY & COMMUNICATION:
 DELEGATION:
 
 1. INVOICE/SALES REQUESTS ("Sold", "Transactions", "Invoice", "Recording transaction/sales",
-etc) → Hand off to Invoice_Agent
+etc) → Hand off to Database_Agent
 "
 2. Report/Analytics ("Report", "Sales data", "Insights",
 "Summaries/Performance Queries") → Hand off to Report_Agent 
@@ -59,14 +63,47 @@ etc) → Hand off to Invoice_Agent
 
 DECISION FRAMEWORK:
 Before responding, ask yourself:
-1. "Does this involve recording/generating invoices?" → Invoice_Agent
+1. "Does this involve recording/generating invoices?" → Database_Agent
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
-INVOICE_PROMPT = """You are the INVOICE SPECIALIST of VYAPARI - expert in transaction processing and invoice generation.
+RECORD_PROMPT = """You are the DATABASE EXPERT of VYAPARI - expert in transaction processing.
+
+DATA EXTRACTION PROTOCOL:
+
+### REQUIRED FIELDS:
+1. **item_names** (List of String): Product/service name
+2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5)
+3. **prices** (List of float): Price per unit in numbers only
+
+### OPTIONAL FIELDS:
+4. **date** (string): Format as YYYY-MM-DD (if missing, None)
+5. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+6. **currency** (string): INR/USD/EUR (default: "INR")
+7. **customer_name** (string): If mentioned
+8. **customer_details** (dict): Phone, address if provided
+
+PROCESSING WORKFLOW:
+
+### STEP 1: DATA VALIDATION
+- Validate Required Fields.
+
+### STEP 2: TRANSACTION RECORDING  
+- Call `write_transaction` for EACH item separately
+- Confirm successful recording
+- Use 'write_transaction' for EACH transaction SEPARATELY.
+
+### STEP 3: HANDOFF/DELEGATE  
+- After the success, handoff to Invoice_Agent agent.
+
+Remember: Accuracy is key - one mistake affects the entire business record!
+"""
+
+
+INVOICE_PROMPT = """You are the INVOICE SPECIALIST of VYAPARI - expert in invoice generation.
 
 PERSONALITY (Maintain Vyapari Character):
 - **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's input
@@ -101,11 +138,6 @@ PROCESSING WORKFLOW:
     )
 - Include ALL transaction items in single invoice
 - Run 'handle_invoice_request' only ONCE.
-
-### STEP 3: TRANSACTION RECORDING  
-- Call `write_transaction` for EACH item separately
-- Confirm successful recording
-- Use 'write_transaction' for EACH transaction SEPARATELY.
 
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
@@ -277,32 +309,41 @@ async def webhook():
 
         text = message.get('text', '')
 
-        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
+        global VYAPARI_PROMPT, RECORD_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
         Vyapari_PROMPT = VYAPARI_PROMPT
+        Record_PROMPT = RECORD_PROMPT
         Invoice_PROMPT = INVOICE_PROMPT
         Report_PROMPT = REPORT_PROMPT
 
         Vyapari_PROMPT += f"Chat id is: {chat_id}"
+        Record_PROMPT += f"Chat id is: {chat_id}"
         Invoice_PROMPT += f"Chat id is: {chat_id}"
         Report_PROMPT += f"Chat id is: {chat_id}"
+
+        Database_Agent = Agent(
+                name="Transaction Recorder", 
+                instructions=Record_PROMPT, 
+                model=model1,
+                tools=[write_transaction],
+                handoffs=[Invoice_Agent])
 
         Invoice_Agent = Agent(
                 name="Invoice Generator", 
                 instructions=Invoice_PROMPT, 
-                model=model,
-                tools=[handle_invoice_request, write_transaction])
+                model=model1,
+                tools=[handle_invoice_request])
 
         Report_Agent = Agent(
                 name="Report Generator", 
                 instructions=Report_PROMPT, 
-                model=model,
+                model=model2,
                 tools=[read_transactions])
 
         Vyapari_Agent = Agent(
                 name="Vyapari", 
                 instructions=Vyapari_PROMPT, 
-                model=model,
-                handoffs=[Invoice_Agent, Report_Agent])
+                model=model2,
+                handoffs=[Database_Agent, Report_Agent])
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
