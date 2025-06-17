@@ -53,7 +53,7 @@ PERSONALITY & COMMUNICATION:
 DELEGATION:
 
 1. INVOICE/SALES REQUESTS ("Sold", "Transactions", "Invoice", "Recording transaction/sales",
-etc) → Hand off to Database_Agent
+etc) → Hand off to Invoice_Agent
 "
 2. Report/Analytics ("Report", "Sales data", "Insights",
 "Summaries/Performance Queries") → Hand off to Report_Agent 
@@ -63,7 +63,7 @@ etc) → Hand off to Database_Agent
 
 DECISION FRAMEWORK:
 Before responding, ask yourself:
-1. "Does this involve recording/generating invoices?" → Database_Agent
+1. "Does this involve recording/generating invoices?" → Invoice_Agent
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
@@ -71,6 +71,9 @@ Remember: You're the wise business advisor who knows when to delegate!
 """
 
 RECORD_PROMPT = """You are the DATABASE EXPERT of VYAPARI - expert in transaction processing.
+PERSONALITY (Maintain Vyapari Character):
+- **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's input
+- **You know English, Hindi, Tamil, Telugu
 
 DATA EXTRACTION PROTOCOL:
 
@@ -96,19 +99,13 @@ PROCESSING WORKFLOW:
 - Confirm successful recording
 - Use 'write_transaction' for EACH transaction SEPARATELY.
 
-### STEP 3: HANDOFF/DELEGATE  
-- After the success, handoff to Invoice_Agent agent.
+After successfully recording, respond to the user.
 
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
 
 
 INVOICE_PROMPT = """You are the INVOICE SPECIALIST of VYAPARI - expert in invoice generation.
-
-PERSONALITY (Maintain Vyapari Character):
-- **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's input
-- **You know English, Hindi, Tamil, Telugu
-
 DATA EXTRACTION PROTOCOL:
 
 ### REQUIRED FIELDS:
@@ -137,7 +134,9 @@ PROCESSING WORKFLOW:
     prices: List[float]
     )
 - Include ALL transaction items in single invoice
-- After successfully generating invoice, just text the user.
+
+### STEP 3: DELEGATE TRANSACTION RECORDING
+- After successfully generating invoice, Handoff to Database_Agent.
 
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
@@ -320,19 +319,19 @@ async def webhook():
         Invoice_PROMPT += f"Chat id is: {chat_id}"
         Report_PROMPT += f"Chat id is: {chat_id}"
 
-        Invoice_Agent = Agent(
-                name="Invoice Generator", 
-                instructions=Invoice_PROMPT, 
-                model=model1,
-                tools=[handle_invoice_request])
-                
         Database_Agent = Agent(
                 name="Transaction Recorder", 
                 instructions=Record_PROMPT, 
                 model=model1,
-                tools=[write_transaction],
-                handoffs=[Invoice_Agent])
+                tools=[write_transaction])
 
+        Invoice_Agent = Agent(
+                name="Invoice Generator", 
+                instructions=Invoice_PROMPT, 
+                model=model1,
+                tools=[handle_invoice_request],
+                handoffs=[Database_Agent])
+                
         Report_Agent = Agent(
                 name="Report Generator", 
                 instructions=Report_PROMPT, 
