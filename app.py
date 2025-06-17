@@ -228,7 +228,8 @@ def handle_invoice_request(
         # Call the updated invoice generator
         invoice_file, invoice_number = generate_invoice(
             items=items,
-            date=date
+            date=date,
+            chat_id=chat_id
         )
 
         # Send invoice as document

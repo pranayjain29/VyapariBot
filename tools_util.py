@@ -272,6 +272,7 @@ def number_to_words(num):
 
 def generate_invoice(
     # NEW: pass a list of dicts instead of a single item
+    chat_id: int,
     items,                # e.g. [{"name": "...", "qty": 2, "rate": 499.0}, …]
     date,                 # Invoice date (scalar – one per invoice)
     invoice_number=None,
@@ -304,7 +305,7 @@ def generate_invoice(
         - rate : float (price per unit)
     """
 
-    filename = f"invoice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"invoice_{str(chat_id)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     doc = SimpleDocTemplate(
         filename,
         pagesize=A4,
@@ -314,7 +315,7 @@ def generate_invoice(
     elements = []
 
     if not invoice_number:
-        invoice_number = f"INV/{datetime.now().strftime('%Y-%m')}/{datetime.now().strftime('%d%H%M')}"
+        invoice_number = f"INV_{str(chat_id)}/{datetime.now().strftime('%Y-%m')}/{datetime.now().strftime('%d%H%M')}"
 
 
     # Company header section
