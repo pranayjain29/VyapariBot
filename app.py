@@ -130,14 +130,14 @@ PROCESSING WORKFLOW:
 
 ### STEP 2: INVOICE GENERATION
 - Generates Invoices. Accept parallel lists for item name, quantity, and price.
-- Use `handle_invoice_request` tool ONCE for all items (Paramters it accepts:
+- Use `handle_invoice_request` tool only ONCE for all items (Paramters it accepts:
     chat_id: int,
     item_names: List[str],
     quantities: List[int],
     prices: List[float]
     )
 - Include ALL transaction items in single invoice
-- Run 'handle_invoice_request' only ONCE.
+- After successfully generating invoice, just text the user.
 
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
