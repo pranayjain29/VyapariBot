@@ -230,21 +230,20 @@ def download_Transactions_CSV(chat_id: int) -> str:
         )
 
         if not data:
-            return "❌ Bhai, there is no transaction in this period."
+            return "❌ Bhai, there is no transaction for this chat_id."
 
         # ── 3. Write CSV to temp file ───────────────────────────────────────
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
-        fieldnames = list(data[0].keys())
-        writer = csv.DictWriter(temp, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(data)
-        temp.close()
+        file_name = f"transactions_{chat_id}_{datetime.now().strftime('%Y-%m')}_{datetime.now().strftime('%d%H%M')}.csv"
+        with open(file_name, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(data[0].keys()))
+            writer.writeheader()
+            writer.writerows(data)
 
-        print(f"CSV Generated: {temp.name}")
-        return temp.name
+        print(f"CSV Generated: {file_name}")
+        return file_name
 
     except Exception as e:
-        print(f"[download_transactions_csv] {e}")
+        print(f"[download_Transactions_CSV] {e}")
         return "❌ Error in making CSV. Sorry brother."
 
 @function_tool
