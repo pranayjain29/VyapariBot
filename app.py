@@ -126,7 +126,9 @@ DATA EXTRACTION PROTOCOL:
 PROCESSING WORKFLOW:
 
 ### STEP 1: DATA VALIDATION
-- Validate Required Fields.
+- Validate Required Fields. If something is unclear, ASK the user
+and DON'T use any tool or handoffs.
+- You have user history. If an invoice is generated successfully, please do not process it again.
 
 ### STEP 2: INVOICE GENERATION
 - Generates Invoices. Accept parallel lists for item name, quantity, and price.
@@ -139,13 +141,24 @@ PROCESSING WORKFLOW:
 - Include ALL transaction items in single invoice
 
 ### STEP 3: DELEGATE TRANSACTION RECORDING
-- After successfully generating invoice, Handoff to Database_Agent.
+- After successfully generating invoice ONCE, Handoff to Database_Agent.
 
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
 
 REPORT_PROMPT = """You are the ANALYTICS SPECIALIST of VYAPARI - expert in business intelligence and reporting.
 You have to fetch user's business transaction using tool: read_transaction and extract insights.
+Sometimes user might only need the transactions csv file. In that case use the tool: download_transactions_csv.
+
+IF DATA EXPORT REQUEST:
+
+### CSV EXPORT
+- If the user says "export", "download", "csv", "sheet", "file", "excel" etc.,
+  call `download_transactions_csv`.
+- After generating csv, stop and provide the output. Thats it.
+...
+
+ELSE:
 
 ## PERSONALITY (Maintain Vyapari Character):
 - **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's input
@@ -354,7 +367,7 @@ async def webhook():
                 name="Report Generator", 
                 instructions=Report_PROMPT, 
                 model=model2,
-                tools=[read_transactions])
+                tools=[read_transactions, download_transactions_csv])
 
         Vyapari_Agent = Agent(
                 name="Vyapari", 

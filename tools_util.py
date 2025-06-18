@@ -7,7 +7,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from datetime import datetime, timedelta, timezone, date
 from supabase import create_client, Client
-import os
+import csv, tempfile, os
 from agents import Agent, Runner, trace, function_tool
 from typing import List, Dict, Any
 
@@ -214,6 +214,42 @@ def read_transactions(chat_id: int):
     except Exception as e:
         print(f"Error reading transactions: {e}")
         return None
+
+@function_tool
+def download_transactions_csv(chat_id: int) -> str:
+    """
+    Fetches transactions via read_transactions(), writes them to a temporary
+    CSV file, sends it to the user, then deletes the temp file.
+
+    """
+    try:
+
+        # ── 1. Pull data from Supabase ───────────────────────────────────────
+        data = read_transactions(
+            chat_id=chat_id
+        )
+
+        if not data:
+            return "❌ Bhai, there is no transaction in this period."
+
+        # ── 3. Write CSV to temp file ───────────────────────────────────────
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+        fieldnames = list(data[0].keys())
+        writer = csv.DictWriter(temp, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+        temp.close()
+
+        # ── 4. Send file via Telegram ───────────────────────────────────────
+        send_document(chat_id, temp.name)
+
+        # ── 5. Housekeeping ────────────────────────────────────────────────
+        os.remove(temp.name)
+        return "✅ CSV Sent Successfully."
+
+    except Exception as e:
+        logger.error(f"[download_transactions_csv] {e}")
+        return "❌ Error in making CSV. Sorry brother."
 
 @function_tool
 def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):

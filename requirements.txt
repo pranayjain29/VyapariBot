@@ -10,3 +10,5 @@ reportlab
 aiohttp
 supabase
 typing
+python-csv
+temp
