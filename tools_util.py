@@ -10,6 +10,7 @@ from supabase import create_client, Client
 import csv, tempfile, os
 from agents import Agent, Runner, trace, function_tool
 from typing import List, Dict, Any
+from app import *
 
 # Initialize Supabase client
 url: str = os.environ.get("SUPABASE_URL_KEY")
@@ -248,7 +249,7 @@ def download_transactions_csv(chat_id: int) -> str:
         return "✅ CSV Sent Successfully."
 
     except Exception as e:
-        logger.error(f"[download_transactions_csv] {e}")
+        print(f"[download_transactions_csv] {e}")
         return "❌ Error in making CSV. Sorry brother."
 
 @function_tool
