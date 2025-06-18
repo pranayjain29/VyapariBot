@@ -333,8 +333,8 @@ async def webhook():
         Invoice_PROMPT = INVOICE_PROMPT
         Report_PROMPT = REPORT_PROMPT
 
-        Vyapari_PROMPT += f"Chat id is: {chat_id}"
-        Vyapari_PROMPT += f"Chat History is: {history}"
+        for prompt_name in ("Vyapari_PROMPT", "Record_PROMPT", "Invoice_PROMPT", "Report_PROMPT"):
+            globals()[prompt_name] += f"Chat id is: {chat_id}\nChat History is: {history}"
 
         Database_Agent = Agent(
                 name="Transaction Recorder", 
