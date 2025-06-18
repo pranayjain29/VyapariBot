@@ -384,6 +384,7 @@ def send_document(chat_id, file_path):
         files = {'document': file}
         data = {'chat_id': chat_id}
         response = requests.post(url, data=data, files=files)
+    print(f"Invoice Sent {response.json()}")
     return response.json()
 
 @app.route('/health', methods=['GET'])
