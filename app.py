@@ -368,7 +368,7 @@ async def webhook():
         send_telegram_message(chat_id, response.final_output)
         bot_text = "Assitant: "
         bot_text += response.final_output
-        log_message(chat_id, bot_text, datetime.now(timezone.utc).isoformat())
+        log_message(chat_id, bot_text, int(datetime.now(timezone.utc).timestamp()))
 
         return 'OK'
 
