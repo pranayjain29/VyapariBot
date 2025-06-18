@@ -296,6 +296,8 @@ async def webhook():
         or message.get('from', {}).get('first_name') # fallback to first name
         or ''                                        # default empty string
     )
+        message_ts = message.get('date')  # epoch‐seconds from Telegram
+
         print(chat_id)
         print(user_name)
 
@@ -308,6 +310,18 @@ async def webhook():
         else:
             update_last_used_date(chat_id, user_name)  # refresh timestamp / name
 
+        # 2. Log the message and trim to last 5
+        log_message(chat_id, text, message_ts)
+
+        # 3. Fetch last 5 and compose a single variable for the bot
+        last_msgs   = get_last_messages(chat_id)
+        history     = "\n".join(
+            f"[{m['message_date']}] {m['message_text']}" for m in last_msgs
+        )
+
+        # 4. Pass `history` into your bot’s processing pipeline as needed
+        print("Conversation history passed to bot:\n", history)
+
         text = message.get('text', '')
 
         global VYAPARI_PROMPT, RECORD_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
@@ -317,9 +331,7 @@ async def webhook():
         Report_PROMPT = REPORT_PROMPT
 
         Vyapari_PROMPT += f"Chat id is: {chat_id}"
-        Record_PROMPT += f"Chat id is: {chat_id}"
-        Invoice_PROMPT += f"Chat id is: {chat_id}"
-        Report_PROMPT += f"Chat id is: {chat_id}"
+        Vyapari_PROMPT += f"Chat History is: {history}"
 
         Database_Agent = Agent(
                 name="Transaction Recorder", 

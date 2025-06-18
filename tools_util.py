@@ -17,6 +17,67 @@ supabase: Client = create_client(url, key)
 
 print("Supabase client created")
 
+
+MAX_HISTORY = 5          # keep only the last 5 messages
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 1. Store message and trim history
+# ────────────────────────────────────────────────────────────────────────────────
+def log_message(chat_id: int, text: str, message_date_utc: int | None) -> None:
+    """
+    1. Inserts the incoming message.
+    2. Deletes older rows so that only the newest MAX_HISTORY remain per chat_id.
+    """
+    date_obj = (
+        datetime.fromtimestamp(message_date_utc, tz=timezone.utc)
+        if message_date_utc
+        else datetime.now(timezone.utc)
+    )
+
+    # ── 1. Insert
+    payload = {
+        "chat_id":      str(chat_id),
+        "message_text": text,
+        "message_date": date_obj.isoformat(),
+        "inserted_at":  datetime.now(timezone.utc).isoformat()
+    }
+    supabase.table("vyapari_message_log").insert(payload).execute()
+
+    # ── 2. Trim (delete everything beyond the newest MAX_HISTORY rows)
+    old_rows_resp = (
+        supabase
+        .table("vyapari_message_log")
+        .select("id")                       # we only need primary key
+        .eq("chat_id", str(chat_id))
+        .order("message_date", desc=True)   # newest → oldest
+        .offset(MAX_HISTORY)                # skip the first N newest rows
+        .execute()
+    )
+
+    old_ids = [row["id"] for row in (old_rows_resp.data or [])]
+    if old_ids:
+        supabase.table("vyapari_message_log").delete().in_("id", old_ids).execute()
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 2. Fetch last N (<=5) messages
+# ────────────────────────────────────────────────────────────────────────────────
+def get_last_messages(chat_id: int, n: int = MAX_HISTORY) -> List[Dict[str, Any]]:
+    """
+    Returns up to `n` latest messages (oldest → newest).
+    """
+    resp = (
+        supabase
+        .table("vyapari_message_log")
+        .select("message_text, message_date")
+        .eq("chat_id", str(chat_id))
+        .order("message_date", desc=True)
+        .limit(n)
+        .execute()
+    )
+    data = resp.data or []
+    return list(reversed(data))  # chronological order
+
 # ---------------------------------------------------------------------------
 # WRITE: insert / update a single user record in table `vyapari_user`
 # ---------------------------------------------------------------------------
