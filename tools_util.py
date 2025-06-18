@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone, date
 from supabase import create_client, Client
 import os
 from agents import Agent, Runner, trace, function_tool
+from typing import List, Dict, Any
 
 # Initialize Supabase client
 url: str = os.environ.get("SUPABASE_URL_KEY")

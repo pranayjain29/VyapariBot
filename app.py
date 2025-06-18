@@ -13,6 +13,7 @@ from datetime import datetime
 import asyncio
 from agents import Agent, Runner, trace, function_tool
 from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from datetime import datetime, timedelta, timezone, date
 
 # Load environment variables
 load_dotenv()
@@ -297,6 +298,8 @@ async def webhook():
         or ''                                        # default empty string
     )
         message_ts = message.get('date')  # epoch‐seconds from Telegram
+        text = "User: "
+        text += message.get('text', '')
 
         print(chat_id)
         print(user_name)
@@ -322,7 +325,7 @@ async def webhook():
         # 4. Pass `history` into your bot’s processing pipeline as needed
         print("Conversation history passed to bot:\n", history)
 
-        text = message.get('text', '')
+        
 
         global VYAPARI_PROMPT, RECORD_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
         Vyapari_PROMPT = VYAPARI_PROMPT
@@ -363,6 +366,10 @@ async def webhook():
             response = await Runner.run(Vyapari_Agent, text)
 
         send_telegram_message(chat_id, response.final_output)
+        bot_text = "Assitant: "
+        bot_text += response.final_output
+        log_message(chat_id, bot_text, datetime.now(timezone.utc).isoformat())
+
         return 'OK'
 
     except Exception as e:
