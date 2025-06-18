@@ -10,7 +10,6 @@ from supabase import create_client, Client
 import csv, tempfile, os
 from agents import Agent, Runner, trace, function_tool
 from typing import List, Dict, Any
-from app import *
 
 # Initialize Supabase client
 url: str = os.environ.get("SUPABASE_URL_KEY")
@@ -216,8 +215,8 @@ def read_transactions(chat_id: int):
         print(f"Error reading transactions: {e}")
         return None
 
-@function_tool
-def download_transactions_csv(chat_id: int) -> str:
+
+def download_Transactions_CSV(chat_id: int) -> str:
     """
     Fetches transactions via read_transactions(), writes them to a temporary
     CSV file, sends it to the user, then deletes the temp file.
@@ -241,12 +240,8 @@ def download_transactions_csv(chat_id: int) -> str:
         writer.writerows(data)
         temp.close()
 
-        # ── 4. Send file via Telegram ───────────────────────────────────────
-        send_document(chat_id, temp.name)
-
-        # ── 5. Housekeeping ────────────────────────────────────────────────
-        os.remove(temp.name)
-        return "✅ CSV Sent Successfully."
+        print(f"CSV Generated: {temp.name}")
+        return temp.name
 
     except Exception as e:
         print(f"[download_transactions_csv] {e}")

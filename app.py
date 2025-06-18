@@ -1,4 +1,4 @@
-import os
+import csv, tempfile, os
 import json
 import logging
 from flask import Flask, request, jsonify
@@ -294,6 +294,26 @@ def handle_invoice_request(
         logger.error(f"Error generating invoice: {str(e)}")
         return "❌ Sorry, there was an error generating the invoice. Please try again."
  
+@function_tool
+def download_transactions_csv(chat_id: int) -> str:
+    """
+    Fetches transactions via read_transactions(), writes them to a temporary
+    CSV file, sends it to the user, then deletes the temp file.
+
+    """
+    try:
+        csv_name = download_Transactions_CSV(chat_id=chat_id)
+
+        # ──  Send file via Telegram ─────
+        send_document(chat_id, csv_name)
+
+        # ── Housekeeping ─────
+        os.remove(csv_name)
+        return "✅ CSV Sent Successfully."
+
+    except Exception as e:
+        print(f"[download_transactions_csv] {e}")
+        return "❌ Error in making CSV. Sorry brother."
 
 @app.route('/webhook', methods=['POST'])
 async def webhook():
