@@ -325,16 +325,17 @@ async def webhook():
         # 4. Pass `history` into your bot’s processing pipeline as needed
         print("Conversation history passed to bot:\n", history)
 
-        
-
         global VYAPARI_PROMPT, RECORD_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
         Vyapari_PROMPT = VYAPARI_PROMPT
         Record_PROMPT = RECORD_PROMPT
         Invoice_PROMPT = INVOICE_PROMPT
         Report_PROMPT = REPORT_PROMPT
 
-        for prompt_name in ("Vyapari_PROMPT", "Record_PROMPT", "Invoice_PROMPT", "Report_PROMPT"):
-            globals()[prompt_name] += f"Chat id is: {chat_id}\nChat History is: {history}"
+        context = f"Chat id is: {chat_id}\nChat History is: {history}"
+        Vyapari_PROMPT += context
+        Record_PROMPT  += context
+        Invoice_PROMPT += context
+        Report_PROMPT  += context
 
         Database_Agent = Agent(
                 name="Transaction Recorder", 
