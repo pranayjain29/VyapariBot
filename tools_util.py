@@ -215,6 +215,17 @@ def read_transactions(chat_id: int):
         print(f"Error reading transactions: {e}")
         return None
 
+def read_transactions_vanilla(chat_id: int):
+    """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
+    try:
+        response = supabase.table('vyapari_transactions').select('*').eq('chat_id', str(chat_id)).execute()
+        # Convert chat_id back to integer for consistency if needed elsewhere,
+        # but the data from DB will have it as string based on how it's stored.
+        # For this function, we just return the data as is from the DB.
+        return response.data
+    except Exception as e:
+        print(f"Error reading transactions: {e}")
+        return None
 
 def download_Transactions_CSV(chat_id: int) -> str:
     """
@@ -225,7 +236,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
     try:
 
         # ── 1. Pull data from Supabase ───────────────────────────────────────
-        data = read_transactions(
+        data = read_transactions_vanilla(
             chat_id=chat_id
         )
 
@@ -244,7 +255,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
 
     except Exception as e:
         print(f"[download_Transactions_CSV] {e}")
-        return "❌ Error in making CSV. Sorry brother."
+        return "❌ Error in generating CSV."
 
 @function_tool
 def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
