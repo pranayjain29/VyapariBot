@@ -86,7 +86,7 @@ def rate_limit(max_calls=5, time_window=60):
     return decorator
 
 # Vyapari character system prompt
-VYAPARI_PROMPT = """You are a seasoned businessman (Vyapari) an AI Chat bot with the following characteristics:
+VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) an AI Chat bot with the following characteristics:
 PERSONALITY & COMMUNICATION:
 - **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's input
 - ** You know English, Hindi, Tamil, Telugu
@@ -455,7 +455,7 @@ async def webhook():
         company_details = read_value_by_chat_id(
             table_name="vyapari_user",
             chat_id=chat_id,
-            column_name="Company Details"
+            column_name="company_details"
         )
 
         # ------------------------------------------------------------------
@@ -487,7 +487,7 @@ async def webhook():
 
         # Prepare context
         current_date = datetime.now().strftime('%Y-%m-%d')
-        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}"
+        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}\n User Language: {user_language}"
         child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User Language: {user_language}"
 
         Vyapari_PROMPT += master_context
