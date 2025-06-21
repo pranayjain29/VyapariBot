@@ -159,6 +159,7 @@ DATA EXTRACTION PROTOCOL:
 1. **item_names** (List of String): Product/service name
 2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5)
 3. **prices** (List of float): Price per unit in numbers only
+4. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
 
 ### OPTIONAL FIELDS:
 4. **company details**: Various company details like name, address, etc.
@@ -167,6 +168,8 @@ DATA EXTRACTION PROTOCOL:
 7. **currency** (string): INR/USD/EUR (default: "INR")
 8. **customer_name** (string): If mentioned
 9. **customer_details** (String): Phone, address if provided
+
+If some fields are not provided, please don't pass it as an argument.
 
 PROCESSING WORKFLOW:
 
@@ -310,7 +313,7 @@ def handle_invoice_request(
     prices: List[float],
     date: str,
 
-    # Company details
+    # OPTIONAL Company details
     company_name="Your Company Name",
     company_address="123 Business Street, Business District",
     company_city="Mumbai, Maharashtra - 400001",
@@ -319,14 +322,14 @@ def handle_invoice_request(
     company_gstin="27ABCDE1234F1Z5",
     company_pan="ABCDE1234F",
 
-    # Customer details
+    # OPTIONAL Customer details
     customer_name="Customer Name",
     customer_address="Customer Address",
     customer_city="Customer City, State - PIN",
     customer_details="",
     customer_gstin="",
 
-    # Tax details
+    # OPTIONAL Tax details
     cgst_rate=9.0,
     sgst_rate=9.0,
     igst_rate=0.0,
@@ -335,6 +338,7 @@ def handle_invoice_request(
     """
     Generates Invoices.
     Accept parallel lists for item name, quantity, and price.
+    Many OPTIONAL fields which you must not include if the value is not provided.
     """
     try:
         # Validation
