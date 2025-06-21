@@ -6,6 +6,9 @@ import requests
 from dotenv import load_dotenv
 from openai import  AsyncOpenAI
 from typing import List, Dict, Union
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
+import time
 
 from tools_util import *
 import re
@@ -43,6 +46,45 @@ model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", open
 gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2)
 model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client2)
 
+executor = ThreadPoolExecutor(max_workers=10)
+
+# Rate limiting decorator
+def rate_limit(max_calls=5, time_window=60):
+    """Simple rate limiting decorator per chat_id"""
+    call_times = {}
+    
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            chat_id = None
+            # Extract chat_id from request
+            if request and request.get_json():
+                update = request.get_json()
+                if 'message' in update:
+                    chat_id = update['message']['chat']['id']
+            
+            if chat_id:
+                current_time = time.time()
+                if chat_id not in call_times:
+                    call_times[chat_id] = []
+                
+                # Clean old calls
+                call_times[chat_id] = [
+                    call_time for call_time in call_times[chat_id] 
+                    if current_time - call_time < time_window
+                ]
+                
+                # Check rate limit
+                if len(call_times[chat_id]) >= max_calls:
+                    logger.warning(f"Rate limit exceeded for chat_id: {chat_id}")
+                    return jsonify({"error": "Rate limit exceeded"}), 429
+                
+                call_times[chat_id].append(current_time)
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
 # Vyapari character system prompt
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) an AI Chat bot with the following characteristics:
 PERSONALITY & COMMUNICATION:
@@ -51,9 +93,9 @@ PERSONALITY & COMMUNICATION:
 - ** Character Traits**: Direct, honest, practical, funny, mid-aged with occasional natural humor
 - **Business Wisdom**: Include relevant Indian (Based on user's language) business proverbs/phrases when appropriate
 - If the text of the user is "/start", then assume he is new to you. Explain him neatly what you do, what can help him,
-in his language, point-wise, with benefits and little natural humour.
+in his language, point-wise, with benefits and little natural humour. Assume he is not that techy.
 
-DELEGATION:
+DELEGATION (Provide enough context and user language while delegating):
 
 1. INVOICE/SALES REQUESTS ("Sold", "Transactions", "Invoice", "Recording transaction/sales",
 etc) → Hand off to Invoice_Agent
@@ -70,7 +112,8 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
-Remember: You're the wise business advisor who knows when to delegate!
+Remember: "Indian" doesn't mean Hindi, you can use the 4 languages as mentioned based on the user's language.
+You're the wise business advisor who knows when to delegate!
 """
 
 RECORD_PROMPT = """You are the DATABASE EXPERT of VYAPARI - expert in recording transactions.
@@ -100,7 +143,7 @@ PROCESSING WORKFLOW:
 - Validate Required Fields.
 
 ### STEP 2: TRANSACTION RECORDING  
-- Use 'write_transaction' for EACH transaction/item SEPARATELY.
+- Use 'write_transaction' for EACH item SEPARATELY.
 - Confirm successful recording
 
 After successfully recording, respond to the user.
@@ -128,8 +171,6 @@ PROCESSING WORKFLOW:
 ### STEP 1: DATA VALIDATION
 - Validate Required Fields. If something is unclear, ASK the user
 and DON'T use any tool or handoffs.
-- You have user history. If an invoice is generated successfully for a particular transaction,
-please do not process it again for that transaction.
 
 ### STEP 2: INVOICE GENERATION
 - Generates Invoices. Accept parallel lists for item name, quantity, and price.
@@ -236,14 +277,23 @@ CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 def send_telegram_message(chat_id, text):
     """Send a message to a specific Telegram chat."""
     try:
-        response = requests.post(
-            f"{TELEGRAM_API_URL}/sendMessage",
-            json={
-                "chat_id": chat_id,
-                "text": text
-            }
-        )
-        response.raise_for_status()
+        if len(text) > 4096:
+                chunks = [text[i:i+4096] for i in range(0, len(text), 4096)]
+                for chunk in chunks:
+                    response = requests.post(
+                        f"{TELEGRAM_API_URL}/sendMessage",
+                        json={"chat_id": chat_id, "text": chunk},
+                        timeout=10
+                    )
+                    response.raise_for_status()
+                    time.sleep(0.1) # Small delay between chunks
+        else:
+                response = requests.post(
+                    f"{TELEGRAM_API_URL}/sendMessage",
+                    json={"chat_id": chat_id, "text": text},
+                    timeout=10
+                )
+                response.raise_for_status()
         return True
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to send Telegram message: {str(e)}")
@@ -262,9 +312,21 @@ def handle_invoice_request(
     Accept parallel lists for item name, quantity, and price.
     """
     try:
-        # Basic length check to avoid mis-aligned rows
+        # Validation
+        if not all([item_names, quantities, prices]):
+            return "❌ Missing required fields for invoice generation."
+        
         if not (len(item_names) == len(quantities) == len(prices)):
-            raise ValueError("item_names, quantities, and prices must have the same length")
+            return "❌ Item lists must have equal length."
+        
+        # Validate data types
+        for i, (name, qty, price) in enumerate(zip(item_names, quantities, prices)):
+            if not isinstance(name, str) or not name.strip():
+                return f"❌ Invalid item name at position {i+1}"
+            if not isinstance(qty, int) or qty <= 0:
+                return f"❌ Invalid quantity at position {i+1}"
+            if not isinstance(price, (int, float)) or price <= 0:
+                return f"❌ Invalid price at position {i+1}"
 
         # Build the structure expected by generate_invoice
         items = [
@@ -316,7 +378,9 @@ def download_transactions_csv(chat_id: int) -> str:
         return "❌ Error in making CSV. Sorry brother."
 
 @app.route('/webhook', methods=['POST'])
+@rate_limit(max_calls=10, time_window=60)
 async def webhook():
+    start_time = time.time()
     try:
         update = request.get_json()
         
@@ -326,13 +390,16 @@ async def webhook():
         message = update['message']
         chat_id = message['chat']['id']
         user_name = (
-        message.get('from', {}).get('username')      # preferred: Telegram @handle
-        or message.get('from', {}).get('first_name') # fallback to first name
-        or ''                                        # default empty string
-    )
+            message.get('from', {}).get('username')      # preferred: Telegram @handle
+            or message.get('from', {}).get('first_name') # fallback to first name
+            or ''                                        # default empty string
+        )
         message_ts = message.get('date')  # epoch‐seconds from Telegram
         text = "User: "
         text += message.get('text', '')
+
+        if not text:
+            return 'OK'
 
         print(chat_id)
         print(user_name)
@@ -364,11 +431,15 @@ async def webhook():
         Invoice_PROMPT = INVOICE_PROMPT
         Report_PROMPT = REPORT_PROMPT
 
-        context = f"Chat id is: {chat_id}\nChat History is: {history}"
-        Vyapari_PROMPT += context
-        Record_PROMPT  += context
-        Invoice_PROMPT += context
-        Report_PROMPT  += context
+        # Prepare context
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\nDate: {current_date}"
+        child_context = f"\nChat ID: {chat_id}\nDate: {current_date}"
+
+        Vyapari_PROMPT += master_context
+        Record_PROMPT  += child_context
+        Invoice_PROMPT += child_context
+        Report_PROMPT  += child_context
 
         Database_Agent = Agent(
                 name="Transaction Recorder", 
@@ -397,7 +468,10 @@ async def webhook():
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
-            response = await Runner.run(Vyapari_Agent, text)
+            response = response = await asyncio.wait_for(
+                    Runner.run(vyapari_agent, user_text), 
+                    timeout=120 # 2 minute timeout
+                )
 
         send_telegram_message(chat_id, response.final_output)
         bot_text = "Assitant: "
