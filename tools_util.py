@@ -352,7 +352,7 @@ def read_value_by_chat_id(
         return row.get(column_name)
 
     except Exception as exc:
-        logger.error(f"[read_value_by_chat_id] {exc}")
+        print(f"[read_value_by_chat_id] {exc}")
         return None
 
 
