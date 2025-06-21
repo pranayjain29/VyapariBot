@@ -26,16 +26,41 @@ MAX_HISTORY = 5          # keep only the last 5 messages
 # ────────────────────────────────────────────────────────────────────────────────
 def log_message(chat_id: int, text: str, message_date_utc: int | None) -> None:
     """
-    1. Inserts the incoming message.
-    2. Deletes older rows so that only the newest MAX_HISTORY remain per chat_id.
+    1️.  Insert the incoming message only if we don't already have a row with the
+        same (chat_id, message_date).
+    2️.  Keep only the newest MAX_HISTORY rows per chat_id.
     """
+
+    # ── Build the message_date value we will store ──────────────────────────
     date_obj = (
         datetime.fromtimestamp(message_date_utc, tz=timezone.utc)
         if message_date_utc
         else datetime.now(timezone.utc)
     )
 
-    # ── 1. Insert
+    msg_iso = date_obj.isoformat()           # identical formatting everywhere
+
+    # ── 1.  Duplicate check  ───────────────────────────────────────────────
+    dup_resp = (
+        supabase
+        .table("vyapari_message_log")
+        .select("id")
+        .eq("chat_id", str(chat_id))
+        .eq("message_date", msg_iso)
+        .limit(1)
+        .execute()
+    )
+
+    if dup_resp.data:                       # duplicate found → skip insert
+        return
+
+    """
+    1. Inserts the incoming message.
+    2. Deletes older rows so that only the newest MAX_HISTORY remain per chat_id.
+    """
+    
+
+    # ── 2. Insert
     payload = {
         "chat_id":      str(chat_id),
         "message_text": text,
@@ -44,7 +69,7 @@ def log_message(chat_id: int, text: str, message_date_utc: int | None) -> None:
     }
     supabase.table("vyapari_message_log").insert(payload).execute()
 
-    # ── 2. Trim (delete everything beyond the newest MAX_HISTORY rows)
+    # ── 3. Trim (delete everything beyond the newest MAX_HISTORY rows)
     old_rows_resp = (
         supabase
         .table("vyapari_message_log")
