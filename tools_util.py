@@ -283,7 +283,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
         return "❌ Error in generating CSV."
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
     try:
@@ -295,7 +295,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "item_name": item_name,
             "quantity": quantity,
             "price_per_unit": price_per_unit,
-            "total_price": total_price,
+            "total_price": price_per_unit*quantity,
             "raw_message": raw_message,
             "payment_method": payment_method,
             "currency": currency,
@@ -464,6 +464,7 @@ def generate_invoice(
     customer_name="Customer Name",
     customer_address="Customer Address",
     customer_city="Customer City, State - PIN",
+    customer_details="",
     customer_gstin="",
 
     # Tax details (unchanged)

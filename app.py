@@ -126,16 +126,17 @@ Given a transaction, you MUST do the following:
 DATA EXTRACTION PROTOCOL:
 
 ### REQUIRED FIELDS:
-1. **item_names** (List of String): Product/service name
-2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5)
-3. **prices** (List of float): Price per unit in numbers only
+1. **item_name** (String): Product/service name
+2. **quantity** (Integer): Must be numeric (convert "baara" → 12, "paach" → 5)
+3. **price_per_unit** (Float): Price per unit in numbers only
+4. **invoice_number**: Provided to you by invoice.
 
 ### OPTIONAL FIELDS:
-4. **date** (string): Format as YYYY-MM-DD (if missing, None)
-5. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-6. **currency** (string): INR/USD/EUR (default: "INR")
-7. **customer_name** (string): If mentioned
-8. **customer_details** (string): Phone, address if provided, all in one string format.
+5. **date** (string): Format as YYYY-MM-DD (if missing, None)
+6. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+7. **currency** (string): INR/USD/EUR (default: "INR")
+8. **customer_name** (string): If mentioned
+9. **customer_details** (string): Phone, address if provided, all in one string format.
 
 PROCESSING WORKFLOW:
 
@@ -322,6 +323,7 @@ def handle_invoice_request(
     customer_name="Customer Name",
     customer_address="Customer Address",
     customer_city="Customer City, State - PIN",
+    customer_details="",
     customer_gstin="",
 
     # Tax details
