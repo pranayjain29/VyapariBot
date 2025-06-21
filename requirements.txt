@@ -13,4 +13,3 @@ typing
 python-csv
 temp
 futures
-functools
