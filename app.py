@@ -86,12 +86,12 @@ def rate_limit(max_calls=5, time_window=60):
     return decorator
 
 # Vyapari character system prompt
-VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) an AI Chat bot with the following characteristics:
+VYAPARI_PROMPT = """You are a seasoned businessman (Vyapari) an AI Chat bot with the following characteristics:
 PERSONALITY & COMMUNICATION:
 - **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's input
-- ** "Indian" means you know English, Hindi, Tamil, Telugu
+- ** You know English, Hindi, Tamil, Telugu
 - ** Character Traits**: Direct, honest, practical, funny, mid-aged with occasional natural humor
-- **Business Wisdom**: Include relevant Indian (Based on user's language) business proverbs/phrases when appropriate
+- **Business Wisdom**: Include relevant (Based on user's language) business proverbs/phrases when appropriate
 - If the text of the user is "/start", then assume he is new to you. Explain him neatly what you do, what can help him,
 in his language, point-wise, with benefits and little natural humour. Assume he is not that techy.
 
@@ -112,7 +112,7 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
-Remember: "Indian" doesn't mean Hindi, you can use the 4 languages as mentioned based on the user's language.
+Remember: You can use the 4 languages as mentioned based on the user's language.
 You're the wise business advisor who knows when to delegate!
 """
 
@@ -135,7 +135,7 @@ DATA EXTRACTION PROTOCOL:
 5. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
 6. **currency** (string): INR/USD/EUR (default: "INR")
 7. **customer_name** (string): If mentioned
-8. **customer_details** (dict): Phone, address if provided
+8. **customer_details** (string): Phone, address if provided, all in one string format.
 
 PROCESSING WORKFLOW:
 
@@ -160,11 +160,12 @@ DATA EXTRACTION PROTOCOL:
 3. **prices** (List of float): Price per unit in numbers only
 
 ### OPTIONAL FIELDS:
-4. **date** (string): Format as YYYY-MM-DD (if missing, None)
-5. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-6. **currency** (string): INR/USD/EUR (default: "INR")
-7. **customer_name** (string): If mentioned
-8. **customer_details** (dict): Phone, address if provided
+4. **company details**: Various company details like name, address, etc.
+5. **date** (string): Format as YYYY-MM-DD (if missing, None)
+6. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+7. **currency** (string): INR/USD/EUR (default: "INR")
+8. **customer_name** (string): If mentioned
+9. **customer_details** (String): Phone, address if provided
 
 PROCESSING WORKFLOW:
 
@@ -185,7 +186,8 @@ and DON'T use any tool or handoffs.
 ### STEP 3: DELEGATE TRANSACTION RECORDING
 - After successfully generating invoice ONCE, Handoff to Database_Agent.
 
-Remember: Accuracy is key - one mistake affects the entire business record!
+Remember: After successfully generating invoice ONCE, Handoff to Database_Agent.
+Accuracy is key - one mistake affects the entire business record!
 """
 
 REPORT_PROMPT = """You are the ANALYTICS SPECIALIST of VYAPARI - expert in business intelligence and reporting.
@@ -305,7 +307,28 @@ def handle_invoice_request(
     item_names: List[str],
     quantities: List[int],
     prices: List[float],
-    date: str
+    date: str,
+
+    # Company details
+    company_name="Your Company Name",
+    company_address="123 Business Street, Business District",
+    company_city="Mumbai, Maharashtra - 400001",
+    company_phone="+91 98765 43210",
+    company_email="contact@yourcompany.com",
+    company_gstin="27ABCDE1234F1Z5",
+    company_pan="ABCDE1234F",
+
+    # Customer details
+    customer_name="Customer Name",
+    customer_address="Customer Address",
+    customer_city="Customer City, State - PIN",
+    customer_gstin="",
+
+    # Tax details
+    cgst_rate=9.0,
+    sgst_rate=9.0,
+    igst_rate=0.0,
+
 ) -> str:
     """
     Generates Invoices.
@@ -338,7 +361,26 @@ def handle_invoice_request(
         invoice_file, invoice_number = generate_invoice(
             items=items,
             date=date,
-            chat_id=chat_id
+            chat_id=chat_id,
+
+            # Company details
+            company_name=company_name,
+            company_address=company_address,
+            company_city=company_city,
+            company_phone=company_phone,
+            company_email=company_email,
+            company_gstin=company_gstin,
+            company_pan=company_pan,
+            
+            customer_name=customer_name,
+            customer_address=customer_address,
+            customer_city=customer_city,
+            customer_gstin=customer_gstin,
+
+            # Tax details
+            cgst_rate=cgst_rate,
+            sgst_rate=sgst_rate,
+            igst_rate=igst_rate
         )
 
         # Send invoice as document
@@ -404,6 +446,18 @@ async def webhook():
         print(chat_id)
         print(user_name)
 
+        user_language = read_value_by_chat_id(
+            table_name="vyapari_user",
+            chat_id=chat_id,
+            column_name="language"
+        )
+
+        company_details = read_value_by_chat_id(
+            table_name="vyapari_user",
+            chat_id=chat_id,
+            column_name="Company Details"
+        )
+
         # ------------------------------------------------------------------
         # 1.  Look up user; insert if not found
         # ------------------------------------------------------------------
@@ -433,13 +487,15 @@ async def webhook():
 
         # Prepare context
         current_date = datetime.now().strftime('%Y-%m-%d')
-        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\nDate: {current_date}"
-        child_context = f"\nChat ID: {chat_id}\nDate: {current_date}"
+        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}"
+        child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User Language: {user_language}"
 
         Vyapari_PROMPT += master_context
         Record_PROMPT  += child_context
         Invoice_PROMPT += child_context
         Report_PROMPT  += child_context
+
+        Invoice_PROMPT += f"\nCompany Details are: {company_details}"
 
         Database_Agent = Agent(
                 name="Transaction Recorder", 
@@ -468,7 +524,7 @@ async def webhook():
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
-            response = response = await asyncio.wait_for(
+            response = await asyncio.wait_for(
                     Runner.run(Vyapari_Agent, text), 
                     timeout=120 # 2 minute timeout
                 )

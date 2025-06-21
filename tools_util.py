@@ -283,7 +283,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
         return "❌ Error in generating CSV."
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR'):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, total_price: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
     try:
@@ -301,7 +301,9 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "currency": currency,
             "inserted_at": datetime.now(timezone.utc).isoformat(),
             "invoice_date": date_obj.isoformat(),
-            "invoice_number" : invoice_number
+            "invoice_number" : invoice_number,
+            "customer_name": customer_name,
+            "customer_details": customer_details
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
         update_user_data(chat_id, total_price)
@@ -310,6 +312,49 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
     except Exception as e:
         print(f"Error writing transaction: {e}")
         return None
+
+def read_value_by_chat_id(
+    table_name: str,
+    chat_id: int | str,
+    column_name: str
+):
+    """
+    Read the first row (ordered by `order_by`) for the given chat_id
+    from `table_name` and return the value of `column_name`.
+
+    Args:
+        table_name  : Supabase table to query.
+        chat_id     : Chat identifier (int or str) to filter on.
+        column_name : Column whose value you want to retrieve.
+
+    Returns:
+        The value at <column_name> in the first matching row,
+        or None if no row / column found.
+    """
+    try:
+        # 🟢  Build the query
+        query = (
+            supabase.table(table_name)
+            .select(column_name)        # only fetch what we need
+            .eq("chat_id", str(chat_id))
+            .limit(1)
+        )
+
+        resp = query.execute()
+        rows = resp.data or []
+
+        if not rows:
+            return "None"                 # no row for this chat_id
+
+        row = rows[0]
+
+        # Safeguard: column might be absent due to typo
+        return row.get(column_name)
+
+    except Exception as exc:
+        logger.error(f"[read_value_by_chat_id] {exc}")
+        return None
+
 
 # Enhanced styles for professional Indian invoice
 styles = getSampleStyleSheet()
