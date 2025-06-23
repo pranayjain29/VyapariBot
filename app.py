@@ -171,6 +171,7 @@ If some fields are not provided, please don't pass it as an argument.
 PROCESSING WORKFLOW:
 
 ### STEP 1: DATA VALIDATION
+- If mentioned 5% Tax or 5% GST, consider it as 2.5% CGST and 2.5% SGST.
 - Validate Required Fields. If something is unclear, ASK the user
 and DON'T use any tool or handoffs.
 

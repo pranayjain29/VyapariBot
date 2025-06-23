@@ -554,16 +554,26 @@ def generate_invoice(
     items_data = items_header
     subtotal = 0.0  # accumulate line totals
 
+    # --- NEW: helper values used in the loop ----------------------------------
+    total_tax_pct = cgst_rate + sgst_rate + igst_rate           # e.g. 2.5 + 2.5 = 5
+    tax_factor    = 1 + total_tax_pct / 100                     # e.g. 1.05
+    # --------------------------------------------------------------------------
+
     for idx, itm in enumerate(items, start=1):
-        line_total = itm["qty"] * itm["rate"]
-        subtotal += line_total
+        # The user-supplied rate already **includes** tax
+        rate_inclusive = itm["rate"]
+
+        # ── 1. Convert it to a *base* rate (without tax) ────────────────────
+        base_rate      = rate_inclusive / tax_factor             # 100 / 1.05 ≈ 95.238
+        line_base_amt  = base_rate * itm["qty"]                  # qty × base_rate
+        subtotal      += line_base_amt
 
         items_data.append([
-            Paragraph(str(idx), content_style),
-            Paragraph(str(itm["name"]), content_style),
-            Paragraph(f"{itm['qty']}", amount_style),
-            Paragraph(f"{itm['rate']:,.2f}", amount_style),
-            Paragraph(f"{line_total:,.2f}", amount_style),
+            Paragraph(str(idx),          content_style),
+            Paragraph(str(itm["name"]),  content_style),
+            Paragraph(f"{itm['qty']}",   amount_style),
+            Paragraph(f"{base_rate:,.2f}", amount_style),        # show untaxed rate
+            Paragraph(f"{line_base_amt:,.2f}", amount_style),
         ])
 
     # ------------------------- Tax rows & totals -------------------------------------
