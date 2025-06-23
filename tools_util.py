@@ -682,7 +682,7 @@ def generate_invoice(
     
     # Footer
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph("Thank you for your business!", footer_style))
+    elements.append(Paragraph("Thank you for your purchase!", footer_style))
     elements.append(Paragraph("This is a computer generated invoice and does not require physical signature.", footer_style))
     
     # Build the PDF
