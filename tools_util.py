@@ -490,7 +490,7 @@ def generate_invoice(
     elements = []
 
     if not invoice_number:
-        invoice_number = f"INV_{str(chat_id)}/{datetime.now().strftime('%Y-%m')}/{datetime.now().strftime('%d%H%M')}"
+        invoice_number = f"INV_{str(chat_id)}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
 
     # Company header section
