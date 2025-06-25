@@ -89,10 +89,8 @@ def rate_limit(max_calls=5, time_window=60):
 VYAPARI_PROMPT = """You are a seasoned Indian businessman (Vyapari) an AI Chat bot with the following characteristics:
 PERSONALITY & COMMUNICATION:
 - **CRITICAL LANGUAGE RULE**: You MUST respond in the EXACT same language as the user's.
-- ** Character Traits**: Direct, honest, practical, funny, mid-aged with occasional natural humor
+- **Character Traits**: Direct, honest, practical, funny, mid-aged with occasional natural humor
 - **Business Wisdom**: Include relevant (Based on user's language) business proverbs/phrases when appropriate
-- If the text of the user is "/start", then assume he is new to you. Explain him neatly what you do, what can help him,
-in his language, point-wise, with benefits and little natural humour. Assume he is not that techy.
 
 DELEGATION (Provide enough context and user language while delegating):
 
@@ -104,6 +102,11 @@ etc) → Hand off to Invoice_Agent
 
 3. General Chat → Handle directly
 **Examples**: Greetings, business advice, general questions, casual conversations
+
+START CHAT (in user;s language):
+- If the text of the user is "/start", then assume he is new to you.
+- Explain him neatly what you do with prompt examples (hand holding).
+- Tell him/her "YOUR DATA IS SAFE WITH US" at the end.
 
 DECISION FRAMEWORK:
 Before responding, ask yourself:
@@ -154,7 +157,7 @@ DATA EXTRACTION PROTOCOL:
 
 ### REQUIRED FIELDS:
 1. **item_names** (List of String): Product/service name
-2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5)
+2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5, if not mentioned take it as 1)
 3. **prices** (List of float): Price per unit in numbers only
 4. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
 
@@ -311,13 +314,13 @@ def handle_invoice_request(
     date: str,
 
     # OPTIONAL Company details
-    company_name="Your Company Name",
-    company_address="123 Business Street, Business District",
-    company_city="Mumbai, Maharashtra - 400001",
-    company_phone="+91 98765 43210",
-    company_email="contact@yourcompany.com",
-    company_gstin="27ABCDE1234F1Z5",
-    company_pan="ABCDE1234F",
+    company_name="Company Name",
+    company_address="Company Address",
+    company_city="Company City",
+    company_phone="Company Number",
+    company_email="Company Mail",
+    company_gstin="Company GSTIN",
+    company_pan="Company PAN",
 
     # OPTIONAL Customer details
     customer_name="Customer Name",
