@@ -9,7 +9,8 @@ from datetime import datetime, timedelta, timezone, date
 from supabase import create_client, Client
 import csv, tempfile, os
 from agents import Agent, Runner, trace, function_tool
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
+from decimal import Decimal, ROUND_HALF_UP
 
 # Initialize Supabase client
 url: str = os.environ.get("SUPABASE_URL_KEY")
@@ -440,17 +441,73 @@ footer_style = ParagraphStyle(
     spaceAfter=5
 )
 
-def number_to_words(num):
-        # Simplified version - you might want to use a library like 'num2words'
-        return f"Rupees {num:,.2f} Only"
+# ---------- minimal word look-ups ----------
+_ONES  = ["", "One", "Two", "Three", "Four", "Five",
+          "Six", "Seven", "Eight", "Nine"]
+_TEENS = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen",
+          "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
+_TENS  = ["", "", "Twenty", "Thirty", "Forty", "Fifty",
+          "Sixty", "Seventy", "Eighty", "Ninety"]
+
+
+def _two_digits(n: int) -> str:                     # 0-99
+    if n == 0:
+        return ""
+    if n < 10:
+        return _ONES[n]
+    if n < 20:
+        return _TEENS[n - 10]
+    return f"{_TENS[n // 10]}{(' ' + _ONES[n % 10]) if n % 10 else ''}"
+
+
+def _three_digits(n: int) -> str:                   # 0-999
+    h, r = divmod(n, 100)
+    return (f"{_ONES[h]} Hundred " if h else "") + _two_digits(r)
+
+
+def number_to_words(amount: Union[int, float, Decimal]) -> str:
+    """
+    Compact converter for amounts < 100 crore (99999999.99) using Indian
+    numbering: crore → lakh → thousand → hundred.
+
+    Example:
+        123456.78  ->  'One Lakh Twenty Three Thousand Four Hundred
+                        Fifty Six Rupees and Seventy Eight Paise Only'
+    """
+    amt = Decimal(str(amount)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    rupees = int(amt)
+    paise  = int((amt - rupees) * 100)
+
+    if rupees == 0:
+        words = "Zero Rupees"
+    else:
+        crore, rem     = divmod(rupees, 10_000_000)
+        lakh,  rem     = divmod(rem,    1_00_000)
+        thousand, rest = divmod(rem,    1_000)
+
+        parts = []
+        if crore:
+            parts.append(f"{_three_digits(crore).strip()} Crore")
+        if lakh:
+            parts.append(f"{_three_digits(lakh).strip()} Lakh")
+        if thousand:
+            parts.append(f"{_three_digits(thousand).strip()} Thousand")
+        if rest:
+            parts.append(_three_digits(rest).strip())
+
+        words = " ".join(parts) + " Rupees"
+
+    if paise:
+        paise_words = _two_digits(paise).title() + " Paise"
+        return f"{words} and {paise_words} Only"
+
+    return f"{words} Only"
 
 def generate_invoice(
     chat_id: int,
-    items,                      # [{"name": "...", "qty": 2, "rate": 100.0}, …] *rate is INCLUSIVE*
-    date,                       # string or datetime
+    items,
+    date,
     invoice_number=None,
-
-    # Company details
     company_name="Your Company Name",
     company_address="123 Business Street, Business District",
     company_city="Mumbai, Maharashtra - 400001",
@@ -458,45 +515,27 @@ def generate_invoice(
     company_email="contact@yourcompany.com",
     company_gstin="27ABCDE1234F1Z5",
     company_pan="ABCDE1234F",
-
-    # Customer details
     customer_name="Customer Name",
     customer_address="Customer Address",
     customer_city="Customer City, State - PIN",
     customer_details="",
     customer_gstin="",
-
-    # Tax rates (in %)
-    cgst_rate=9.0,
-    sgst_rate=9.0,
-    igst_rate=0.0,
+    cgst_rate=9.0, sgst_rate=9.0, igst_rate=0.0,
 ):
-    """
-    Create a GST-compliant invoice PDF.
-
-    The *rate* supplied for every item is **inclusive** of GST.
-    The generated line-item table will now hold individual columns for:
-        CGST amount, SGST amount, IGST amount, and the final gross amount
-    """
-
-    # ───────────────────────────  Setup  ──────────────────────────────────
     filename = f"invoice_{chat_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-
     doc = SimpleDocTemplate(
-        filename,
-        pagesize=A4,
-        leftMargin=0.75 * inch, rightMargin=0.75 * inch,
-        topMargin=0.75 * inch,  bottomMargin=0.75 * inch,
+        filename, pagesize=A4,
+        leftMargin=0.75*inch, rightMargin=0.75*inch,
+        topMargin=0.75*inch,  bottomMargin=0.75*inch,
     )
     elements = []
-
     if not invoice_number:
         invoice_number = (
-            f"INV_{chat_id}/{datetime.now(timezone.utc).strftime('%Y-%m')}"
-            f"/{datetime.now(timezone.utc).strftime('%d%H%M')}"
+            f"INV_{chat_id}/{datetime.now(timezone.utc).strftime('%Y-%m')}/"
+            f"{datetime.now(timezone.utc).strftime('%d%H%M')}"
         )
 
-    # ─────────────────────   Header & Customer   ─────────────────────────
+    # ----------------------------- header / customer (unchanged) --------------------
     elements.append(Paragraph(company_name, company_style))
     elements.append(Paragraph("TAX INVOICE", invoice_title_style))
     elements.append(Spacer(1, 15))
@@ -513,176 +552,161 @@ def generate_invoice(
             f"<br/><b>GSTIN:</b> {company_gstin}<br/><b>PAN:</b> {company_pan}",
             content_style)]
     ]
-    header_table = Table(header_data, colWidths=[4 * inch, 3 * inch])
+    header_table = Table(header_data, colWidths=[4*inch, 3*inch])
     header_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#f7fafc")),
+        ('ALIGN',(0,0),(-1,-1),'LEFT'), ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('FONTSIZE',(0,0),(-1,-1),10),
+        ('GRID',(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#f7fafc")),
+        ('BOTTOMPADDING',(0,0),(-1,-1),15),
     ]))
-    elements.append(header_table)
-    elements.append(Spacer(1, 20))
+    elements += [header_table, Spacer(1,20)]
 
-    # Customer block
     elements.append(Paragraph("<b>Bill To:</b>", section_header_style))
-    customer_info = f"{customer_name}<br/>{customer_address}<br/>{customer_city}"
+    cust_info = f"{customer_name}<br/>{customer_address}<br/>{customer_city}"
     if customer_gstin:
-        customer_info += f"<br/>GSTIN: {customer_gstin}"
-    customer_table = Table([[Paragraph(customer_info, content_style)]],
-                           colWidths=[7 * inch])
-    customer_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f7fafc")),
+        cust_info += f"<br/>GSTIN: {customer_gstin}"
+    cust_tbl = Table([[Paragraph(cust_info, content_style)]], colWidths=[doc.width])
+    cust_tbl.setStyle(TableStyle([
+        ('ALIGN',(0,0),(-1,-1),'LEFT'),
+        ('GRID',(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ('BACKGROUND',(0,0),(-1,-1),colors.HexColor("#f7fafc")),
+        ('BOTTOMPADDING',(0,0),(-1,-1),15),
     ]))
-    elements.append(customer_table)
-    elements.append(Spacer(1, 20))
+    elements += [cust_tbl, Spacer(1,20)]
 
-    # ──────────────────────  Items Table  ────────────────────────────────
+    # ----------------------------- ITEM TABLE ---------------------------------------
+    # 1. Table header
     items_header = [[
         Paragraph("S.No.", table_header_style),
         Paragraph("Description", table_header_style),
         Paragraph("Qty", table_header_style),
-        Paragraph("Rate (ex-GST)", table_header_style),
-        Paragraph(f"CGST {cgst_rate}%", table_header_style),
-        Paragraph(f"SGST {sgst_rate}%", table_header_style),
-        Paragraph(f"IGST {igst_rate}%", table_header_style),
-        Paragraph("Total (incl. GST)", table_header_style),
+        Paragraph("Rate<br/>(ex-GST)", table_header_style),
+        Paragraph(f"CGST<br/>{cgst_rate}%", table_header_style),
+        Paragraph(f"SGST<br/>{sgst_rate}%", table_header_style),
+        Paragraph(f"IGST<br/>{igst_rate}%", table_header_style),
+        Paragraph("Total<br/>(incl. GST)", table_header_style),
     ]]
-
     items_data = items_header
 
-    # Running totals
-    subtotal       = 0.0
-    total_cgst_amt = 0.0
-    total_sgst_amt = 0.0
-    total_igst_amt = 0.0
-    grand_total    = 0.0
+    # 2. Column-width computation
+    serial_w  = 0.55*inch
+    qty_w     = 0.55*inch
+    rate_w    = 0.85*inch
+    tax_w     = 0.80*inch         # for each of CGST/SGST/IGST
+    gross_w   = 0.95*inch
+    fixed_total = serial_w + qty_w + rate_w + gross_w + 3*tax_w
+    desc_w    = max(1.2*inch, doc.width - fixed_total)  # whatever space is left
+    col_widths = [
+        serial_w, desc_w, qty_w, rate_w,
+        tax_w, tax_w, tax_w, gross_w
+    ]
 
-    total_tax_pct = cgst_rate + sgst_rate + igst_rate
-    tax_factor    = 1 + total_tax_pct / 100.0          # e.g. 1.18 for 9+9
+    # 3. Calculations and filling rows
+    subtotal = total_cgst = total_sgst = total_igst = grand = 0.0
+    tax_pct = cgst_rate + sgst_rate + igst_rate
+    tax_factor = 1 + tax_pct/100.0
 
-    for idx, itm in enumerate(items, start=1):
-        gross_rate = itm["rate"]                       # inclusive
-        qty        = itm["qty"]
-
+    for idx, row in enumerate(items, start=1):
+        gross_rate = row["rate"]        # inclusive
+        qty        = row["qty"]
         base_rate  = gross_rate / tax_factor
-        cgst_amt   = (base_rate * cgst_rate / 100.0) * qty
-        sgst_amt   = (base_rate * sgst_rate / 100.0) * qty
-        igst_amt   = (base_rate * igst_rate / 100.0) * qty
+        cgst_amt   = (base_rate*cgst_rate/100.0)*qty
+        sgst_amt   = (base_rate*sgst_rate/100.0)*qty
+        igst_amt   = (base_rate*igst_rate/100.0)*qty
+        base_total = base_rate*qty
+        gross_total= gross_rate*qty
 
-        line_base_total  = base_rate * qty
-        line_gross_total = gross_rate * qty
+        subtotal   += base_total
+        total_cgst += cgst_amt
+        total_sgst += sgst_amt
+        total_igst += igst_amt
+        grand      += gross_total
 
-        # accumulate
-        subtotal       += line_base_total
-        total_cgst_amt += cgst_amt
-        total_sgst_amt += sgst_amt
-        total_igst_amt += igst_amt
-        grand_total    += line_gross_total
-
-        # Table row
         items_data.append([
             Paragraph(str(idx), content_style),
-            Paragraph(itm["name"], content_style),
+            Paragraph(row["name"], content_style),
             Paragraph(f"{qty}", amount_style),
             Paragraph(f"{base_rate:,.2f}", amount_style),
             Paragraph(f"{cgst_amt:,.2f}", amount_style),
             Paragraph(f"{sgst_amt:,.2f}", amount_style),
             Paragraph(f"{igst_amt:,.2f}", amount_style),
-            Paragraph(f"{line_gross_total:,.2f}", amount_style),
+            Paragraph(f"{gross_total:,.2f}", amount_style),
         ])
 
-    # Build the table
-    col_widths = [
-        0.6 * inch, 3.0 * inch, 0.6 * inch, 0.9 * inch,
-        0.9 * inch, 0.9 * inch, 0.9 * inch, 1.1 * inch
-    ]
-    items_table = Table(items_data, colWidths=col_widths)
-    items_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2d3748")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1),
-         [colors.white, colors.HexColor("#f7fafc")]),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(items_table)
-    elements.append(Spacer(1, 15))
-
-    # ─────────────────────  Totals Section  ──────────────────────────────
-    total_data = [
-        [Paragraph("<b>Sub-Total (ex-GST):</b>", total_amount_style),
-         Paragraph(f"INR. {subtotal:,.2f}", total_amount_style)],
-        [Paragraph(f"<b>CGST @ {cgst_rate}%:</b>", total_amount_style),
-         Paragraph(f"INR. {total_cgst_amt:,.2f}", total_amount_style)],
-        [Paragraph(f"<b>SGST @ {sgst_rate}%:</b>", total_amount_style),
-         Paragraph(f"INR. {total_sgst_amt:,.2f}", total_amount_style)],
-        [Paragraph(f"<b>IGST @ {igst_rate}%:</b>", total_amount_style),
-         Paragraph(f"INR. {total_igst_amt:,.2f}", total_amount_style)],
-        [Paragraph("<b>Grand Total:</b>", total_amount_style),
-         Paragraph(f"INR. {grand_total:,.2f}", total_amount_style)],
-    ]
-    total_table = Table(total_data, colWidths=[5 * inch, 2 * inch])
-    total_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('GRID', (0, -1), (-1, -1), 1, colors.HexColor('#2d3748')),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f7fafc')),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-    ]))
-    elements.append(total_table)
-
-    # Amount in words
-    elements.append(Spacer(1, 15))
-    elements.append(Paragraph(
-        f"<b>Amount in Words:</b> {number_to_words(grand_total)}",
-        section_header_style))
-    elements.append(Spacer(1, 20))
-
-    # Terms
-    terms_text = (
-        "<b>Terms & Conditions:</b><br/>"
-        "1. Payment is due within 30 days of invoice date.<br/>"
-        "2. Interest @ 24% per annum will be charged on overdue amounts.<br/>"
-        "3. All disputes subject to local jurisdiction only.<br/>"
-        "4. Goods once sold will not be taken back."
+    # 4. Build table and add to story
+    item_table = Table(
+        items_data,
+        colWidths=col_widths,
+        repeatRows=1          # header repeats on page break
     )
-    elements.append(Paragraph(terms_text, content_style))
-    elements.append(Spacer(1, 30))
-
-    # Sign-off
-    sign_tbl = Table([
-        ["", Paragraph(
-            f"<b>For {company_name}</b><br/><br/><br/>Authorized Signatory",
-            content_style)]
-    ], colWidths=[4 * inch, 3 * inch])
-    sign_tbl.setStyle(TableStyle([
-        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+    item_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#2d3748")),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('GRID',(0,0),(-1,-1),0.5,colors.black),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('ALIGN',(1,1),(1,-1),'LEFT'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),
+         [colors.white, colors.HexColor("#f7fafc")]),
+        ('TOPPADDING',(0,0),(-1,-1),4),
+        ('BOTTOMPADDING',(0,0),(-1,-1),4),
     ]))
-    elements.append(sign_tbl)
-    elements.append(Spacer(1, 20))
+    elements += [item_table, Spacer(1,15)]
 
-    elements.append(Paragraph("Thank you for your purchase!", footer_style))
-    elements.append(
+    # ----------------------------  TOTALS  ------------------------------------------
+    totals = [
+        ["Sub-Total (ex-GST):", subtotal],
+        [f"CGST @ {cgst_rate}%:", total_cgst],
+        [f"SGST @ {sgst_rate}%:", total_sgst],
+        [f"IGST @ {igst_rate}%:", total_igst],
+        ["Grand Total:", grand],
+    ]
+    totals_data = [
+        [Paragraph(f"<b>{label}</b>", total_amount_style),
+         Paragraph(f"INR. {value:,.2f}", total_amount_style)]
+        for label, value in totals
+    ]
+    totals_tbl = Table(totals_data, colWidths=[doc.width-2*inch, 2*inch])
+    totals_tbl.setStyle(TableStyle([
+        ('ALIGN',(0,0),(-1,-1),'RIGHT'),
+        ('GRID',(0,-1),(-1,-1),1,colors.HexColor("#2d3748")),
+        ('BACKGROUND',(0,-1),(-1,-1),colors.HexColor("#f7fafc")),
+        ('FONTSIZE',(0,0),(-1,-1),11),
+        ('BOTTOMPADDING',(0,0),(-1,-1),8),
+        ('TOPPADDING',(0,0),(-1,-1),8),
+        ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
+    ]))
+    elements.append(totals_tbl)
+
+    # -------------------------- footer / build  -------------------------------------
+    elements += [
+        Spacer(1,15),
+        Paragraph(f"<b>Amount in Words:</b> {number_to_words(grand)}",
+                  section_header_style),
+        Spacer(1,20),
         Paragraph(
-            "This is a computer-generated invoice and does not require a signature.",
-            footer_style))
+            "<b>Terms & Conditions:</b><br/>"
+            "1. Payment is due within 30 days of invoice date.<br/>"
+            "2. Interest @ 24% per annum will be charged on overdue amounts.<br/>"
+            "3. All disputes subject to local jurisdiction only.<br/>"
+            "4. Goods once sold will not be taken back.",
+            content_style),
+        Spacer(1,30)
+    ]
+    sign_tbl = Table(
+        [["", Paragraph(f"<b>For {company_name}</b><br/><br/><br/>Authorized Signatory",
+                        content_style)]],
+        colWidths=[doc.width-3*inch, 3*inch])
+    sign_tbl.setStyle(TableStyle([
+        ('ALIGN',(1,0),(1,0),'RIGHT'),
+        ('FONTSIZE',(0,0),(-1,-1),10)
+    ]))
+    elements += [sign_tbl, Spacer(1,20),
+                 Paragraph("Thank you for your purchase!", footer_style),
+                 Paragraph("This is a computer-generated invoice and does not "
+                           "require a signature.", footer_style)]
 
-    # ─────────────────────  Build PDF  ────────────────────────────────────
     doc.build(elements)
     print(f"Invoice generated: {filename}  ({invoice_number})")
     return filename, invoice_number
