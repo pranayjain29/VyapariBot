@@ -144,14 +144,15 @@ DATA EXTRACTION PROTOCOL:
 1. **item_name** (String): Product/service name
 2. **quantity** (Integer): Must be numeric (convert "baara" → 12, "paach" → 5)
 3. **price_per_unit** (Float): Price per unit in numbers only
-4. **invoice_number**: Provided to you by invoice.
+4. **tax_rate** (Float): Total Tax Rate (in %)
+5. **invoice_number**: Provided to you by invoice.
 
 ### OPTIONAL FIELDS:
-5. **date** (string): Format as YYYY-MM-DD (if missing, None)
-6. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-7. **currency** (string): INR/USD/EUR (default: "INR")
-8. **customer_name** (string): If mentioned
-9. **customer_details** (string): Phone, address if provided, all in one string format.
+6. **date** (string): Format as YYYY-MM-DD (if missing, None)
+7. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+8. **currency** (string): INR/USD/EUR (default: "INR")
+9. **customer_name** (string): If mentioned
+10. **customer_details** (string): Phone, address if provided, all in one string format.
 
 PROCESSING WORKFLOW:
 
@@ -204,7 +205,7 @@ and DON'T use any tool or handoffs.
 - Include ALL transaction items in single invoice
 
 ### STEP 3: DELEGATE TRANSACTION RECORDING
-- After successfully generating invoice ONCE, Handoff to Database_Agent.
+- After successfully generating invoice ONCE, Handoff to Database_Agent with appropriate details.
 
 Remember: After successfully generating invoice ONCE, Handoff to Database_Agent.
 Accuracy is key - one mistake affects the entire business record!
@@ -218,7 +219,7 @@ Sometimes user might only need the transactions csv file. In that case use the t
 ** CSV EXPORT
 - If the user says "export", "download", "csv", "sheet", "data", "excel" etc.,
   call `download_transactions_csv`.
-- After generating csv, stop and provide the output. Thats it.
+- Only after generating csv, stop and provide the output. Thats it.
 ...
 
 ELSE, if you are needed to generate an insight report:

@@ -284,7 +284,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
         return "❌ Error in generating CSV."
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
     try:
@@ -296,7 +296,9 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "item_name": item_name,
             "quantity": quantity,
             "price_per_unit": price_per_unit,
-            "total_price": price_per_unit*quantity,
+            "total_price_including_tax": price_per_unit*quantity,
+            "tax_amount": tax_rate*price_per_unit*quantity,
+            "tax_rate": tax_rate,
             "raw_message": raw_message,
             "payment_method": payment_method,
             "currency": currency,
@@ -689,8 +691,7 @@ def generate_invoice(
             "<b>Terms & Conditions:</b><br/>"
             "1. Payment is due within 30 days of invoice date.<br/>"
             "2. Interest @ 24% per annum will be charged on overdue amounts.<br/>"
-            "3. All disputes subject to local jurisdiction only.<br/>"
-            "4. Goods once sold will not be taken back.",
+            "3. All disputes subject to local jurisdiction only.<br/>",
             content_style),
         Spacer(1,30)
     ]
