@@ -192,7 +192,7 @@ If some fields are not provided, please don't pass it as an argument.
 PROCESSING WORKFLOW:
 
 ### STEP 1: DATA VALIDATION
-- If mentioned 5% Tax or 5% GST, consider it as 2.5% CGST and 2.5% SGST.
+- If mentioned 5% Tax or 5% GST, consider it as 2.5 CGST RATE and 2.5 SGST RATE.
 - Validate Required Fields. If something is unclear, ASK the user
 and DON'T use any tool or handoffs.
 
@@ -308,8 +308,7 @@ def send_telegram_message(chat_id, text):
                         json={
                             "chat_id": chat_id,
                             "text": chunk, 
-                            "parse_mode": "HTML",
-                            "disable_web_page_preview": True
+                            "parse_mode": "HTML"
                         },
                         timeout=10
                     )
