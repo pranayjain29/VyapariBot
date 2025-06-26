@@ -309,7 +309,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "customer_details": customer_details
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
-        update_user_data(chat_id, total_price)
+        update_user_data(chat_id, price_per_unit*quantity)
         
         return response.data
     except Exception as e:

@@ -164,7 +164,7 @@ PROCESSING WORKFLOW:
 - Confirm successful recording
 
 After successfully recording, respond to the user.
-
+The parse_mode is HTML, so you can use <b> </b> for bold and so on.
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
 
@@ -288,7 +288,7 @@ Identify specific report type:
 - **Insufficient Data**: "Thoda aur data chahiye accurate report ke liye"
 - **Data Issues**: Identify and report data quality problems
 
-OUTPUT: Use plain text with clear headings. Avoid special characters that break
+OUTPUT: The parse_mode is HTML, so you can use <b> </b> for bold and so on. Avoid special characters that break
 Telegram formatting.
 
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
@@ -304,7 +304,12 @@ def send_telegram_message(chat_id, text):
                 for chunk in chunks:
                     response = requests.post(
                         f"{TELEGRAM_API_URL}/sendMessage",
-                        json={"chat_id": chat_id, "text": chunk},
+                        json={
+                            "chat_id": chat_id,
+                            "text": chunk, 
+                            "parse_mode": "HTML",
+                            "disable_web_page_preview": True
+                        },
                         timeout=10
                     )
                     response.raise_for_status()
