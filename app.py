@@ -129,6 +129,7 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
+The parse_mode is HTML, so you can use <b> </b> for bold and so on.
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
@@ -164,7 +165,7 @@ PROCESSING WORKFLOW:
 - Confirm successful recording
 
 After successfully recording, respond to the user.
-The parse_mode is HTML, so you can use <b> </b> for bold and so on.
+
 Remember: Accuracy is key - one mistake affects the entire business record!
 """
 
