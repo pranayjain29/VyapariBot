@@ -460,13 +460,19 @@ table_header_style = ParagraphStyle(
 )
 
 # Amount style
-amount_style = ParagraphStyle(
-    'AmountStyle',
-    parent=styles['Normal'],
-    fontSize=10,
-    fontName='Helvetica',
-    alignment=2  # Right alignment
-)
+amount_style = ParagraphStyle('Amount',  parent=styles['Normal'],
+                                    fontSize=10, alignment=2)
+amount_style_bold = ParagraphStyle('AmountB', parent=amount_style,
+                                    fontName='Helvetica-Bold')
+grand_amount_style = ParagraphStyle('GrandAmt', parent=amount_style_bold,
+                                    fontSize=11, textColor=colors.HexColor('#1a365d'))
+
+# Labels for totals
+total_label_style = ParagraphStyle('TotLab',  parent=styles['Normal'],
+                                     fontSize=10, alignment=2)
+grand_label_style = ParagraphStyle('GrandLab', parent=total_label_style,
+                                     fontName='Helvetica-Bold', fontSize=11,
+                                     textColor=colors.HexColor('#1a365d'))
 
 # Total amount style
 total_amount_style = ParagraphStyle(
@@ -487,6 +493,40 @@ footer_style = ParagraphStyle(
     alignment=1,
     spaceAfter=5
 )
+
+def _totals_table(doc_width: float,
+                  subtotal: float,
+                  total_cgst: float,
+                  total_sgst: float,
+                  total_igst: float,
+                  grand: float):
+
+    rows = [
+        #  (label,          value,            is_grand?)
+        ("Sub-Total (ex-GST):",  subtotal,     False),
+        (f"CGST:",                total_cgst,  False),
+        (f"SGST:",                total_sgst,  False),
+        (f"IGST:",                total_igst,  False),
+        ("Grand Total:",          grand,       True),
+    ]
+
+    data = []
+    for lbl, val, is_grand in rows:
+        lab_sty  = grand_label_style  if is_grand else total_label_style
+        amt_sty  = grand_amount_style if is_grand else amount_style_bold
+        data.append([Paragraph(lbl, lab_sty),
+                     Paragraph(f"INR {val:,.2f}", amt_sty)])
+
+    tbl = Table(data, colWidths=[doc_width - 1.8*inch, 1.8*inch])
+    tbl.setStyle(TableStyle([
+        ('ALIGN',  (0,0), (-1,-1), 'RIGHT'),
+        ('RIGHTPADDING',(0,0),(-1,-1), 0),
+        ('TOPPADDING',  (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+        ('LINEABOVE',  (0,4), (-1,4),  0.7, colors.HexColor("#1a365d")), # Grand
+        ('BACKGROUND',(0,4), (-1,4),  colors.HexColor("#f7fafc")),       # Grand
+    ]))
+    return tbl
 
 # ---------- minimal word look-ups ----------
 _ONES  = ["", "One", "Two", "Three", "Four", "Five",
@@ -704,29 +744,8 @@ def generate_invoice(
     elements += [item_table, Spacer(1,15)]
 
     # ----------------------------  TOTALS  ------------------------------------------
-    totals = [
-        ["Sub-Total (ex-GST):", subtotal],
-        [f"CGST @ {cgst_rate}%:", total_cgst],
-        [f"SGST @ {sgst_rate}%:", total_sgst],
-        [f"IGST @ {igst_rate}%:", total_igst],
-        ["Grand Total:", grand],
-    ]
-    totals_data = [
-        [Paragraph(f"<b>{label}</b>", total_amount_style),
-         Paragraph(f"INR. {value:,.2f}", total_amount_style)]
-        for label, value in totals
-    ]
-    totals_tbl = Table(totals_data, colWidths=[doc.width-2*inch, 2*inch])
-    totals_tbl.setStyle(TableStyle([
-        ('ALIGN',(0,0),(-1,-1),'RIGHT'),
-        ('GRID',(0,-1),(-1,-1),1,colors.HexColor("#2d3748")),
-        ('BACKGROUND',(0,-1),(-1,-1),colors.HexColor("#f7fafc")),
-        ('FONTSIZE',(0,0),(-1,-1),11),
-        ('BOTTOMPADDING',(0,0),(-1,-1),8),
-        ('TOPPADDING',(0,0),(-1,-1),8),
-        ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
-    ]))
-    elements.append(totals_tbl)
+    elements.append(_totals_table(doc.width, subtotal, total_cgst, total_sgst,
+                      total_igst, grand))
 
     # -------------------------- footer / build  -------------------------------------
     elements += [
