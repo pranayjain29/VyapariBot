@@ -509,6 +509,7 @@ def generate_invoice(
     chat_id: int,
     items,
     date,
+    payment_method="Cash",
     invoice_number=None,
     company_name="Your Company Name",
     company_address="123 Business Street, Business District",
@@ -539,7 +540,7 @@ def generate_invoice(
 
     # ----------------------------- header / customer (unchanged) --------------------
     elements.append(Paragraph(company_name, company_style))
-    elements.append(Paragraph("TAX INVOICE", invoice_title_style))
+    elements.append(Paragraph("INVOICE", invoice_title_style))
     elements.append(Spacer(1, 15))
 
     header_data = [
@@ -551,7 +552,8 @@ def generate_invoice(
             content_style),
          Paragraph(
             f"<b>Invoice No:</b> {invoice_number}<br/><b>Date:</b> {date}"
-            f"<br/><b>GSTIN:</b> {company_gstin}<br/><b>PAN:</b> {company_pan}",
+            f"<br/><b>GSTIN:</b> {company_gstin}<br/><b>PAN:</b> {company_pan}"
+            f"<br/><b>Payment:</b> {payment_method}",
             content_style)]
     ]
     header_table = Table(header_data, colWidths=[4*inch, 3*inch])
