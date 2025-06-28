@@ -105,21 +105,6 @@ etc) → Hand off to Invoice_Agent
 3. General Chat → Handle directly
 **Examples**: Greetings, business advice, general questions, casual conversations
 
-WHEN USER SENDS “/start”:
-- Assume they are new. Explain services simply.
-- Explain him neatly what you do with prompt examples (hand holding).
-- What you do? :
-    1. You can record sales or generate invoice in simple language.
-  (REQUIRED FIELDS -> item_name: Product/service name, quantity, price_per_unit)
-  (OPTIONAL FIELDS -> date: if missing, today's date, payment_method : cash/credit/gpay/paytm/card (default: "cash"), 
-currency: INR/USD/EUR (default: "INR"), customer_name, customer_details: Phone, address.)
-   2. You can download all sales/transactions data or ask for business insights or reports
-   3. You can give advice, general talks and really help them.
-
-- Explain him that he can change his language by texting \language followed by their preferred language. Same for company details: \company.
-
-- Tell him/her "YOUR DATA IS SAFE WITH US" at the end.
-
 DECISION FRAMEWORK:
 Before responding, ask yourself:
 1. "Does this involve recording/generating invoices?" → Invoice_Agent
@@ -481,6 +466,58 @@ async def webhook():
         print(chat_id)
         print(user_name)
         print(message.get('text', ''))
+
+        if message.get('text', '').startswith(r"/start"):
+            start_text = r"""
+            🎉 Welcome to Your Business Assistant Bot!
+            Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
+
+            📝 What I Can Do For You:
+
+            1. Record Sales & Generate Invoices
+            Just tell me about your sale in plain language, and I'll handle the rest!
+
+            Required: Product name, quantity, and price per unit
+            Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
+
+            Example texts:
+            - "I sold 5 packets of tea for ₹20 each to Ram"
+            - "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card"
+            - "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
+
+            2. Download Data & Business Insights
+            Get your complete sales data or ask for reports and analysis.
+
+            Example texts:
+            - "Download all my sales data"
+            - "Show me this month's revenue"
+            - "Which product sells the most?"
+            - "Give me weekly sales report"
+
+            3. General Business Advice & Support
+            I'm here for friendly conversations and business guidance too!
+
+            Example texts:
+            - "How can I increase my sales?"
+            - "What's the best way to handle customer complaints?"
+            - "Help me plan my inventory"
+
+            ⚙️ Quick Settings:
+
+            Change Language: Type `\language` followed by your preferred language
+            Example: \language Hindi
+
+            Set Company Details: Type `\company` followed by your business information
+            Example: \company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
+
+            ---
+
+            🔒 YOUR DATA IS SAFE WITH US
+
+            Ready to get started? Just tell me about your first sale or ask me anything!
+            """
+            send_telegram_message(chat_id, start_text)
+            return "OK"
 
         if message.get('text', '').startswith("\\language"):
             lang = text.split("\\language", 1)[-1].strip()
