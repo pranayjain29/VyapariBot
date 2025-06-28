@@ -116,6 +116,8 @@ currency: INR/USD/EUR (default: "INR"), customer_name, customer_details: Phone, 
    2. You can download all sales/transactions data or ask for business insights or reports
    3. You can give advice, general talks and really help them.
 
+- Explain him that he can change his language by texting /language followed by their preferred language. Same for company details: /company.
+
 - Tell him/her "YOUR DATA IS SAFE WITH US" at the end.
 
 DECISION FRAMEWORK:
@@ -124,7 +126,7 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
-FORMAT: Simple text. You can use emojis and ASCII stylize and organize.
+FORMAT: Simple text. You can use emojis and ASCII/unicode stylize and organize.
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
@@ -190,7 +192,8 @@ PROCESSING WORKFLOW:
 ### STEP 1: DATA VALIDATION
 - If mentioned 5% Tax or 5% GST, consider it as 2.5 CGST RATE and 2.5 SGST RATE.
 - Validate Required Fields. If some of the important fields are absent, HELP user
-  to write all the required information, teach with examples, and DON'T use any tool or handoffs.
+  to write all the required information, ask him to mention everything in one text,
+  teach with examples, and DON'T use any tool or handoffs.
 
 ### STEP 2: INVOICE GENERATION
 - Generates Invoices. Accept parallel lists for item name, quantity, and price.
@@ -295,7 +298,7 @@ Identify specific report type:
 - **Insufficient Data**: "I need more data for reporting"
 - **Data Issues**: Identify and report data quality problems
 
-FORMAT: Simple text. You can use emojis and ASCII stylize and organize.
+FORMAT: Simple text. You can use emojis and ASCII/unicode stylize and organize.
 
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
@@ -477,6 +480,16 @@ async def webhook():
 
         print(chat_id)
         print(user_name)
+
+        if text.startswith("/language"):
+            lang = text.split("/language", 1)[-1].strip()
+            update_user_field(chat_id, "language", lang)
+            return send_telegram_message(chat_id, f"Language set to {lang} ✅")
+
+        if text.startswith("/company"):
+            comp = text.split("/company", 1)[-1].strip()
+            update_user_field(chat_id, "company_details", comp)
+            return send_telegram_message(chat_id, f"Company Details set to {comp} ✅")
 
         user_language = read_value_by_chat_id(
             table_name="vyapari_user",

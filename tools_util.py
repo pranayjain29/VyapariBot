@@ -227,6 +227,51 @@ def update_user_data(chat_id: int, transaction_amount: float):
     except Exception as e:
         print(f"Error updating user data: {e}")
         return None
+        
+def update_user_field(chat_id: int, column: str, value: Any):
+    """
+    Unified helper that:
+      • Ensures a `vyapari_user` record exists for `chat_id` (creates one on-the-fly).
+      • Updates *any* single column with the supplied value (regardless of data type).
+      • Always refreshes the `last_updated` timestamp.
+
+    Parameters
+    ----------
+    chat_id : int
+        Telegram chat / user id.
+    column  : str
+        Column name to update (e.g., "user_name", "total_revenue").
+    value   : Any
+        New value to write into the selected column.
+
+    Returns
+    -------
+    dict | None
+        Supabase response data, or None on failure.
+    """
+    try:
+        # 1. Verify (or create) the user row
+        if not read_user(chat_id):
+            write_user(chat_id, user_name="")        # minimal stub row
+
+        # 2. Build & execute update payload
+        payload = {
+            column: value,
+            "last_updated": datetime.utcnow().isoformat(timespec="seconds")
+        }
+
+        response = (
+            supabase
+            .table("vyapari_user")
+            .update(payload)
+            .eq("chat_id", str(chat_id))
+            .execute()
+        )
+        return response.data
+
+    except Exception as e:
+        print(f"Error updating '{column}' for chat_id {chat_id}: {e}")
+        return None
 
 @function_tool
 def read_transactions(chat_id: int):
