@@ -480,14 +480,14 @@ async def webhook():
 
         print(chat_id)
         print(user_name)
-        print(text)
+        print(message.get('text', ''))
 
-        if text.startswith("\\language"):
+        if message.get('text', '').startswith("\\language"):
             lang = text.split("\\language", 1)[-1].strip()
             update_user_field(chat_id, "language", lang)
             return send_telegram_message(chat_id, f"Language set to {lang} ✅")
 
-        if text.startswith("\\company"):
+        if message.get('text', '').startswith("\\company"):
             comp = text.split("\\company", 1)[-1].strip()
             update_user_field(chat_id, "company_details", comp)
             return send_telegram_message(chat_id, f"Company Details set to {comp} ✅")
