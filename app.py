@@ -470,63 +470,64 @@ async def webhook():
         if message.get('text', '').startswith(r"/start"):
             start_text = r"""
             🎉 Welcome to Your Business Assistant Bot!
-            Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
 
-            📝 What I Can Do For You:
+Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
 
-            1. Record Sales & Generate Invoices
-            Just tell me about your sale in plain language, and I'll handle the rest!
+📝 What I Can Do For You:
 
-            Required: Product name, quantity, and price per unit
-            Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
+1. Record Sales & Generate Invoices
+Just tell me about your sale in plain language, and I'll handle the rest!
 
-            Example texts:
-            - "I sold 5 packets of tea for ₹20 each to Ram"
-            - "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card"
-            - "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
+Required: Product name, quantity, and price per unit
+Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
 
-            2. Download Data & Business Insights
-            Get your complete sales data or ask for reports and analysis.
+Example texts:
+- "I sold 5 packets of tea for ₹20 each to Ram"
+- "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card"
+- "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
 
-            Example texts:
-            - "Download all my sales data"
-            - "Show me this month's revenue"
-            - "Which product sells the most?"
-            - "Give me weekly sales report"
+2. Download Data & Business Insights
+Get your complete sales data or ask for reports and analysis.
 
-            3. General Business Advice & Support
-            I'm here for friendly conversations and business guidance too!
+Example texts:
+- "Download all my sales data"
+- "Show me this month's revenue"
+- "Which product sells the most?"
+- "Give me weekly sales report"
 
-            Example texts:
-            - "How can I increase my sales?"
-            - "What's the best way to handle customer complaints?"
-            - "Help me plan my inventory"
+3. General Business Advice & Support
+I'm here for friendly conversations and business guidance too!
 
-            ⚙️ Quick Settings:
+Example texts:
+- "How can I increase my sales?"
+- "What's the best way to handle customer complaints?"
+- "Help me plan my inventory"
 
-            Change Language: Type `\language` followed by your preferred language
-            Example: \language Hindi
+⚙️ Quick Settings:
 
-            Set Company Details: Type `\company` followed by your business information
-            Example: \company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
+Change Language: Type `/language` followed by your preferred language
+Example: /language Hindi
 
-            ---
+Set Company Details: Type `/company` followed by your business information
+Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
 
-            🔒 YOUR DATA IS SAFE WITH US
+---
 
-            Ready to get started? Just tell me about your first sale or ask me anything!
+🔒 YOUR DATA IS SAFE WITH US
+
+Ready to get started? Just tell me about your first sale or ask me anything!
             """
             send_telegram_message(chat_id, start_text)
             return "OK"
 
-        if message.get('text', '').startswith("\\language"):
-            lang = text.split("\\language", 1)[-1].strip()
+        if message.get('text', '').startswith(r"/language"):
+            lang = text.split(r"/language", 1)[-1].strip()
             update_user_field(chat_id, "language", lang)
             send_telegram_message(chat_id, f"Language set to {lang} ✅")
             return "OK"
 
-        if message.get('text', '').startswith("\\company"):
-            comp = text.split("\\company", 1)[-1].strip()
+        if message.get('text', '').startswith(r"/company"):
+            comp = text.split(r"/company", 1)[-1].strip()
             update_user_field(chat_id, "company_details", comp)
             send_telegram_message(chat_id, f"Company Details set to {comp} ✅")
             return "OK"
