@@ -116,7 +116,7 @@ currency: INR/USD/EUR (default: "INR"), customer_name, customer_details: Phone, 
    2. You can download all sales/transactions data or ask for business insights or reports
    3. You can give advice, general talks and really help them.
 
-- Explain him that he can change his language by texting /language followed by their preferred language. Same for company details: /company.
+- Explain him that he can change his language by texting \language followed by their preferred language. Same for company details: \company.
 
 - Tell him/her "YOUR DATA IS SAFE WITH US" at the end.
 
@@ -480,14 +480,15 @@ async def webhook():
 
         print(chat_id)
         print(user_name)
+        print(text)
 
-        if text.startswith("/language"):
-            lang = text.split("/language", 1)[-1].strip()
+        if text.startswith("\language"):
+            lang = text.split("\language", 1)[-1].strip()
             update_user_field(chat_id, "language", lang)
             return send_telegram_message(chat_id, f"Language set to {lang} ✅")
 
-        if text.startswith("/company"):
-            comp = text.split("/company", 1)[-1].strip()
+        if text.startswith("\company"):
+            comp = text.split("\company", 1)[-1].strip()
             update_user_field(chat_id, "company_details", comp)
             return send_telegram_message(chat_id, f"Company Details set to {comp} ✅")
 
@@ -520,9 +521,6 @@ async def webhook():
         history     = "\n".join(
             f"[{m['message_date']}] {m['message_text']}" for m in last_msgs
         )
-
-        # 4. Pass `history` into your bot’s processing pipeline as needed
-        print("Conversation history passed to bot:\n", history)
 
         global VYAPARI_PROMPT, RECORD_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
         Vyapari_PROMPT = VYAPARI_PROMPT
