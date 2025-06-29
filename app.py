@@ -10,6 +10,7 @@ from openai import  AsyncOpenAI
 from typing import List, Dict, Union, Any
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
+import functools
 
 from tools_util import *
 import re
