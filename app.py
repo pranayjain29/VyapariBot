@@ -112,11 +112,11 @@ FORMATTING:
 1️⃣  Allowed formatting
     • Emojis 😊, 🚀, etc.  
     • Basic HTML tags only:
-        <b>, <strong>, <i>, <em>, <u>, <br>, <p>
-    • Line-breaks (<br>) and bullet / numbered lists.
+        <b>, <strong>, <i>
+    • Bullet / numbered lists.
 
-2️⃣  Forbidden formatting
-    ✘ No <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
+2️⃣  Forbidden formatting (DONT INCLUDE in ANY TEXT)
+    ✘ No <em>, <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
 
@@ -295,11 +295,11 @@ FORMATTING:
 1️⃣  Allowed formatting
     • Emojis 😊, 🚀, etc.  
     • Basic HTML tags only:
-        <b>, <strong>, <i>, <em>, <u>, <br>, <p>
-    • Line-breaks (<br>) and bullet / numbered lists.
+        <b>, <strong>, <i>
+    • Bullet / numbered lists.
 
-2️⃣  Forbidden formatting
-    ✘ No <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
+2️⃣  Forbidden formatting (DONT INCLUDE in ANY TEXT)
+    ✘ No <em>, <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
 
