@@ -301,9 +301,9 @@ async def send_telegram_message(chat_id, text):
                                 "parse_mode": "HTML"
                             }
                         )
-                        asyncio.sleep(0.1) # Small delay between chunks
+                        await asyncio.sleep(0.1) # Small delay between chunks
             else:
-                    response = client.post(
+                    response = await client.post(
                         f"{TELEGRAM_API_URL}/sendMessage",
                         json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
                     )
@@ -469,7 +469,7 @@ async def telegram_webhook(request: Request):
         # -------------- off-load ALL synchronous helpers --------------
         # (1) Telegram send
         async def send(msg: str):
-            await run_blocking(send_telegram_message, chat_id, msg)
+            await send_telegram_message(chat_id, msg)
 
         # (2) DB helpers
         read_val   = lambda col: run_blocking(
