@@ -45,7 +45,7 @@ model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", open
 gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2)
 model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client2)
 
-executor = ThreadPoolExecutor(max_workers=10)
+executor: ThreadPoolExecutor | None = None
 
 # ───────────────────── rate-limit dependency ─────────────────────
 def rate_limiter(max_calls: int = 5, time_window: int = 60):
@@ -435,6 +435,11 @@ def download_transactions_csv(chat_id: int) -> str:
         print(f"[download_transactions_csv] {e}")
         return "❌ Error in making CSV. Sorry brother."
 
+def run_blocking(func, *args, **kwargs):
+    """Return an awaitable that executes *func* in the thread-pool."""
+    loop = asyncio.get_running_loop()
+    return loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
+
 @app.post("/webhook", dependencies=[Depends(rate_limiter(max_calls=10, time_window=60))])
 async def telegram_webhook(request: Request):
     start_time = time.time()
@@ -461,6 +466,24 @@ async def telegram_webhook(request: Request):
         print(chat_id)
         print(user_name)
         print(message.get('text', ''))
+
+        # -------------- off-load ALL synchronous helpers --------------
+        # (1) Telegram send
+        async def send(msg: str):
+            await run_blocking(send_telegram_message, chat_id, msg)
+
+        # (2) DB helpers
+        read_val   = lambda col: run_blocking(
+            read_value_by_chat_id,
+            table_name="vyapari_user",
+            chat_id=chat_id,
+            column_name=col,
+        )
+        
+        user_record_future     = run_blocking(read_user, chat_id)
+        last_messages_future   = run_blocking(get_last_messages, chat_id)
+        user_language_future   = read_val("language")
+        company_details_future = read_val("company_details")
 
         if message.get('text', '').startswith(r"/start"):
             start_text = r"""
@@ -512,47 +535,46 @@ Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com,
 
 Ready to get started? Just tell me about your first sale or ask me anything!
             """
-            send_telegram_message(chat_id, start_text)
+            send(start_text)
             return "OK"
 
         if message.get('text', '').startswith(r"/language"):
             lang = text.split(r"/language", 1)[-1].strip()
             update_user_field(chat_id, "language", lang)
-            send_telegram_message(chat_id, f"Language set to {lang} ✅")
+            send(f"Language set to {lang} ✅")
             return "OK"
 
         if message.get('text', '').startswith(r"/company"):
             comp = text.split(r"/company", 1)[-1].strip()
             update_user_field(chat_id, "company_details", comp)
-            send_telegram_message(chat_id, f"Company Details set to {comp} ✅")
+            send(f"Company Details set to {comp} ✅")
             return "OK"
 
-        user_language = read_value_by_chat_id(
-            table_name="vyapari_user",
-            chat_id=chat_id,
-            column_name="language"
-        )
-
-        company_details = read_value_by_chat_id(
-            table_name="vyapari_user",
-            chat_id=chat_id,
-            column_name="company_details"
+        # -------------- gather awaited results --------------
+        (
+            user_record,
+            last_msgs,
+            user_language,
+            company_details
+        ) = await asyncio.gather(
+            user_record_future,
+            last_messages_future,
+            user_language_future,
+            company_details_future,
         )
 
         # ------------------------------------------------------------------
         # 1.  Look up user; insert if not found
         # ------------------------------------------------------------------
-        user_record = read_user(chat_id)           # returns None if absent
         if not user_record:
-            write_user(chat_id, user_name)         # create with defaults
+            await run_blocking(write_user, chat_id, user_name)
         else:
-            update_last_used_date(chat_id, user_name)  # refresh timestamp / name
+            await run_blocking(update_last_used_date, chat_id, user_name)
 
         # 2. Log the message and trim to last 5
-        log_message(chat_id, text, message_ts)
+        await run_blocking(log_message, chat_id, text, message_ts)
 
         # 3. Fetch last 5 and compose a single variable for the bot
-        last_msgs   = get_last_messages(chat_id)
         history     = "\n".join(
             f"[{m['message_date']}] {m['message_text']}" for m in last_msgs
         )
@@ -607,10 +629,15 @@ Ready to get started? Just tell me about your first sale or ask me anything!
                     timeout=120 # 2 minute timeout
                 )
 
-        send_telegram_message(chat_id, response.final_output)
+        send(response.final_output)
         bot_text = "Assitant: "
         bot_text += response.final_output
-        log_message(chat_id, bot_text, int(datetime.now(timezone.utc).timestamp()))
+        await run_blocking(
+            log_message,
+            chat_id,
+            bot_text,
+            int(datetime.now(timezone.utc).timestamp()),
+        )
 
         return 'OK'
 
@@ -639,6 +666,16 @@ def health_check():
 
 @app.on_event("startup")
 async def _startup_checks():
+    global executor
     if not TELEGRAM_TOKEN or not GEMINI_API_KEY1:
         logger.error("Missing required environment variables. Exiting…")
         raise RuntimeError("Incomplete ENV")
+
+    executor = ThreadPoolExecutor(max_workers=5)
+    logger.info("ThreadPoolExecutor started with %d workers", MAX_WORKERS)
+
+@app.on_event("shutdown")
+async def _shutdown_pool():
+    if executor:
+        executor.shutdown(wait=False)
+        logger.info("ThreadPoolExecutor shut down")
