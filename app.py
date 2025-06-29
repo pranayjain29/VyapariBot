@@ -115,7 +115,7 @@ FORMATTING:
         <b>, <strong>, <i>
     • Bullet / numbered lists.
 
-2️⃣  Forbidden formatting (DONT INCLUDE in ANY TEXT)
+2️⃣  Forbidden formatting (DON'T EVEN INCLUDE in ANY TEXT, IT WILL GIVE ERROR)
     ✘ No <em>, <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
@@ -298,7 +298,7 @@ FORMATTING:
         <b>, <strong>, <i>
     • Bullet / numbered lists.
 
-2️⃣  Forbidden formatting (DONT INCLUDE in ANY TEXT)
+2️⃣  Forbidden formatting (DON'T EVEN INCLUDE in ANY TEXT, IT WILL GIVE ERROR)
     ✘ No <em>, <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
