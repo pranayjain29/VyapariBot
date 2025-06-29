@@ -670,8 +670,8 @@ async def _startup_checks():
         logger.error("Missing required environment variables. Exiting…")
         raise RuntimeError("Incomplete ENV")
 
-    executor = ThreadPoolExecutor(max_workers=10)
-    logger.info("ThreadPoolExecutor started with %d workers", 10)
+    executor = ThreadPoolExecutor(max_workers=20)
+    logger.info("ThreadPoolExecutor started with %d workers", 20)
 
 @app.on_event("shutdown")
 async def _shutdown_pool():
