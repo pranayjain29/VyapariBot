@@ -672,7 +672,7 @@ async def _startup_checks():
         raise RuntimeError("Incomplete ENV")
 
     executor = ThreadPoolExecutor(max_workers=5)
-    logger.info("ThreadPoolExecutor started with %d workers", MAX_WORKERS)
+    logger.info("ThreadPoolExecutor started with %d workers", 5)
 
 @app.on_event("shutdown")
 async def _shutdown_pool():
