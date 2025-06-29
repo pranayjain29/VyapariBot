@@ -108,7 +108,7 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
-FORMAT: Simple text. You can use emojis HTML formatting (<b> <\b>, etc) to stylize and organize.
+FORMAT: You can use emojis, HTML formatting (<b> <\b>, etc) to stylize and organize.
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
@@ -280,7 +280,7 @@ Identify specific report type:
 - **Insufficient Data**: "I need more data for reporting"
 - **Data Issues**: Identify and report data quality problems
 
-FORMAT: Simple text. You can use emojis HTML formatting (<b> <\b>, etc) to stylize and organize.
+FORMAT: You can use emojis, HTML formatting (<b> <\b>, etc) to stylize and organize.
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
