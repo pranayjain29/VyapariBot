@@ -112,7 +112,7 @@ FORMATTING:
 1️⃣  Allowed formatting
     • Emojis 😊, 🚀, etc.  
     • Basic HTML tags only:
-        <b>, <strong>, <i>, <em>, <u>, <br>, <ul>, <ol>, <li>, <p>
+        <b>, <strong>, <i>, <em>, <u>, <br>, <p>
     • Line-breaks (<br>) and bullet / numbered lists.
 
 2️⃣  Forbidden formatting
@@ -295,7 +295,7 @@ FORMATTING:
 1️⃣  Allowed formatting
     • Emojis 😊, 🚀, etc.  
     • Basic HTML tags only:
-        <b>, <strong>, <i>, <em>, <u>, <br>, <ul>, <ol>, <li>, <p>
+        <b>, <strong>, <i>, <em>, <u>, <br>, <p>
     • Line-breaks (<br>) and bullet / numbered lists.
 
 2️⃣  Forbidden formatting
