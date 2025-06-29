@@ -1,5 +1,6 @@
 gunicorn
 uvicorn
+uvicorn-worker
 flask[async]
 fastapi
 python-dotenv
