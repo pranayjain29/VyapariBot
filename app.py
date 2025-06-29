@@ -116,7 +116,7 @@ FORMATTING:
     • Line-breaks (<br>) and bullet / numbered lists.
 
 2️⃣  Forbidden formatting
-    ✘ No <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
+    ✘ No <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
 
@@ -299,7 +299,7 @@ FORMATTING:
     • Line-breaks (<br>) and bullet / numbered lists.
 
 2️⃣  Forbidden formatting
-    ✘ No <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
+    ✘ No <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
 
