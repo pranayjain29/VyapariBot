@@ -1,5 +1,7 @@
 gunicorn
+uvicorn
 flask[async]
+fastapi
 python-dotenv
 openai
 openai-agents==0.0.17

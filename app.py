@@ -1,19 +1,19 @@
-import csv, tempfile, os
-import json
-import logging
+import csv, tempfile, os, time, asyncio, logging, json
+
+from fastapi import FastAPI, Request, status, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from flask import Flask, request, jsonify
+
 import requests
 from dotenv import load_dotenv
 from openai import  AsyncOpenAI
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
-import time
 
 from tools_util import *
 import re
 from datetime import datetime
-import asyncio
 from agents import Agent, Runner, trace, function_tool
 from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 from datetime import datetime, timedelta, timezone, date
@@ -28,8 +28,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
+app = FastAPI(title="Vyapari Bot - FastAPI")
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -48,42 +47,39 @@ model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", open
 
 executor = ThreadPoolExecutor(max_workers=10)
 
-# Rate limiting decorator
-def rate_limit(max_calls=5, time_window=60):
-    """Simple rate limiting decorator per chat_id"""
-    call_times = {}
-    
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            chat_id = None
-            # Extract chat_id from request
-            if request and request.get_json():
-                update = request.get_json()
-                if 'message' in update:
-                    chat_id = update['message']['chat']['id']
-            
-            if chat_id:
-                current_time = time.time()
-                if chat_id not in call_times:
-                    call_times[chat_id] = []
-                
-                # Clean old calls
-                call_times[chat_id] = [
-                    call_time for call_time in call_times[chat_id] 
-                    if current_time - call_time < time_window
-                ]
-                
-                # Check rate limit
-                if len(call_times[chat_id]) >= max_calls:
-                    logger.warning(f"Rate limit exceeded for chat_id: {chat_id}")
-                    return jsonify({"error": "Rate limit exceeded"}), 429
-                
-                call_times[chat_id].append(current_time)
-            
-            return await func(*args, **kwargs)
-        return wrapper
-    return decorator
+# ───────────────────── rate-limit dependency ─────────────────────
+def rate_limiter(max_calls: int = 5, time_window: int = 60):
+    """
+    FastAPI dependency version of the per-chat_id rate-limit.
+    Stores timestamps in a closure-level dict.
+    """
+    call_times: Dict[int, List[float]] = {}
+
+    async def _dependency(request: Request):
+        body: Dict[str, Any] = await request.json()
+        chat_id = (
+            body.get("message", {})
+            .get("chat", {})
+            .get("id")
+            if "message" in body
+            else None
+        )
+        if chat_id is None:
+            return  # Let it pass (non-telegram test ping etc.)
+
+        now = time.time()
+        call_times.setdefault(chat_id, [])
+        call_times[chat_id] = [t for t in call_times[chat_id] if now - t < time_window]
+
+        if len(call_times[chat_id]) >= max_calls:
+            logger.warning("Rate limit exceeded for %s", chat_id)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded",
+            )
+        call_times[chat_id].append(now)
+
+    return _dependency
 
 # Vyapari character system prompt
 VYAPARI_PROMPT = r"""
@@ -439,9 +435,8 @@ def download_transactions_csv(chat_id: int) -> str:
         print(f"[download_transactions_csv] {e}")
         return "❌ Error in making CSV. Sorry brother."
 
-@app.route('/webhook', methods=['POST'])
-@rate_limit(max_calls=10, time_window=60)
-async def webhook():
+@app.post("/webhook", dependencies=[Depends(rate_limiter(max_calls=10, time_window=60))])
+async def telegram_webhook(request: Request):
     start_time = time.time()
     try:
         update = request.get_json()
@@ -621,7 +616,10 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
-        return 'Error', 500
+        raise HTTPException(status_code=500, detail="Internal error")
+
+    finally:
+        logger.info("request duration %.2fs", time.time() - start_time)
 
 
 def send_document(chat_id, file_path):
@@ -637,12 +635,10 @@ def send_document(chat_id, file_path):
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "healthy"}), 200
+    return {"status": "healthy"}
 
-if __name__ == '__main__':
-    # Validate environment variables
-    if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
-        logger.error("Missing required environment variables")
-        exit(1)
-    
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000))) 
+@app.on_event("startup")
+async def _startup_checks():
+    if not TELEGRAM_TOKEN or not GEMINI_API_KEY1:
+        logger.error("Missing required environment variables. Exiting…")
+        raise RuntimeError("Incomplete ENV")
