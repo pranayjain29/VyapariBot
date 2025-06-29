@@ -285,7 +285,7 @@ Remember: Your reports should help the user make better business decisions - foc
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
 
-def send_telegram_message(chat_id, text):
+async def send_telegram_message(chat_id, text):
     """Send a message to a specific Telegram chat."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
