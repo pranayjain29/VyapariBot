@@ -108,7 +108,18 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
-FORMAT: You can use emojis, HTML formatting (<b> <\b>, etc) to stylize and organize.
+FORMATTING:
+1️⃣  Allowed formatting
+    • Emojis 😊, 🚀, etc.  
+    • Basic HTML tags only:
+        <b>, <strong>, <i>, <em>, <u>, <br>, <ul>, <ol>, <li>, <p>
+    • Line-breaks (<br>) and bullet / numbered lists.
+
+2️⃣  Forbidden formatting
+    ✘ No <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
+    ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
+    ✘ No external assets (images, iframes).
+
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
@@ -280,7 +291,18 @@ Identify specific report type:
 - **Insufficient Data**: "I need more data for reporting"
 - **Data Issues**: Identify and report data quality problems
 
-FORMAT: You can use emojis, HTML formatting (<b> <\b>, etc) to stylize and organize.
+FORMATTING:
+1️⃣  Allowed formatting
+    • Emojis 😊, 🚀, etc.  
+    • Basic HTML tags only:
+        <b>, <strong>, <i>, <em>, <u>, <br>, <ul>, <ol>, <li>, <p>
+    • Line-breaks (<br>) and bullet / numbered lists.
+
+2️⃣  Forbidden formatting
+    ✘ No <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
+    ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
+    ✘ No external assets (images, iframes).
+
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
