@@ -6,6 +6,7 @@ fastapi
 python-dotenv
 openai
 openai-agents==0.0.17
+httpx
 
 python-telegram-bot
 requests

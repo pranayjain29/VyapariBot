@@ -1,4 +1,4 @@
-import csv, tempfile, os, time, asyncio, logging, json
+import csv, tempfile, os, time, asyncio, logging, json, httpx
 
 from fastapi import FastAPI, Request, status, HTTPException, Depends
 from fastapi.responses import JSONResponse
@@ -108,7 +108,7 @@ Before responding, ask yourself:
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
-FORMAT: Simple text. You can use emojis and ASCII/unicode stylize and organize.
+FORMAT: Simple text. You can use emojis HTML formatting (<b> <\b>, etc) to stylize and organize.
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
@@ -280,8 +280,7 @@ Identify specific report type:
 - **Insufficient Data**: "I need more data for reporting"
 - **Data Issues**: Identify and report data quality problems
 
-FORMAT: Simple text. You can use emojis and ASCII/unicode stylize and organize.
-
+FORMAT: Simple text. You can use emojis HTML formatting (<b> <\b>, etc) to stylize and organize.
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
@@ -289,28 +288,27 @@ CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 def send_telegram_message(chat_id, text):
     """Send a message to a specific Telegram chat."""
     try:
-        if len(text) > 4096:
-                chunks = [text[i:i+4096] for i in range(0, len(text), 4096)]
-                for chunk in chunks:
-                    response = requests.post(
+        async with httpx.AsyncClient(timeout=10) as client:
+
+            if len(text) > 4096:
+                    chunks = [text[i:i+4096] for i in range(0, len(text), 4096)]
+                    for chunk in chunks:
+                        response = await client.post(
+                            f"{TELEGRAM_API_URL}/sendMessage",
+                            json={
+                                "chat_id": chat_id,
+                                "text": chunk,
+                                "parse_mode": "HTML"
+                            }
+                        )
+                        asyncio.sleep(0.1) # Small delay between chunks
+            else:
+                    response = client.post(
                         f"{TELEGRAM_API_URL}/sendMessage",
-                        json={
-                            "chat_id": chat_id,
-                            "text": chunk, 
-                            "parse_mode": "HTML"
-                        },
-                        timeout=10
+                        json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
                     )
                     response.raise_for_status()
-                    time.sleep(0.1) # Small delay between chunks
-        else:
-                response = requests.post(
-                    f"{TELEGRAM_API_URL}/sendMessage",
-                    json={"chat_id": chat_id, "text": text},
-                    timeout=10
-                )
-                response.raise_for_status()
-        return True
+            return True
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to send Telegram message: {str(e)}")
         return False
@@ -672,8 +670,8 @@ async def _startup_checks():
         logger.error("Missing required environment variables. Exiting…")
         raise RuntimeError("Incomplete ENV")
 
-    executor = ThreadPoolExecutor(max_workers=5)
-    logger.info("ThreadPoolExecutor started with %d workers", 5)
+    executor = ThreadPoolExecutor(max_workers=10)
+    logger.info("ThreadPoolExecutor started with %d workers", 10)
 
 @app.on_event("shutdown")
 async def _shutdown_pool():
