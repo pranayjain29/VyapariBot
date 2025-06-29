@@ -439,7 +439,7 @@ def download_transactions_csv(chat_id: int) -> str:
 async def telegram_webhook(request: Request):
     start_time = time.time()
     try:
-        update = request.get_json()
+        update = await request.json()
         
         if 'message' not in update:
             return 'OK'
