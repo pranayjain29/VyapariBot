@@ -536,19 +536,19 @@ Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com,
 
 Ready to get started? Just tell me about your first sale or ask me anything!
             """
-            send(start_text)
+            await send(start_text)
             return "OK"
 
         if message.get('text', '').startswith(r"/language"):
             lang = text.split(r"/language", 1)[-1].strip()
             update_user_field(chat_id, "language", lang)
-            send(f"Language set to {lang} ✅")
+            await send(f"Language set to {lang} ✅")
             return "OK"
 
         if message.get('text', '').startswith(r"/company"):
             comp = text.split(r"/company", 1)[-1].strip()
             update_user_field(chat_id, "company_details", comp)
-            send(f"Company Details set to {comp} ✅")
+            await send(f"Company Details set to {comp} ✅")
             return "OK"
 
         # -------------- gather awaited results --------------
@@ -630,7 +630,7 @@ Ready to get started? Just tell me about your first sale or ask me anything!
                     timeout=120 # 2 minute timeout
                 )
 
-        send(response.final_output)
+        await send(response.final_output)
         bot_text = "Assitant: "
         bot_text += response.final_output
         await run_blocking(
