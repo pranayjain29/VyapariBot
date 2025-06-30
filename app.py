@@ -361,8 +361,8 @@ def handle_invoice_request(
     customer_gstin="",
 
     # OPTIONAL Tax details
-    cgst_rate=9.0,
-    sgst_rate=9.0,
+    cgst_rate=0.0,
+    sgst_rate=0.0,
     igst_rate=0.0,
 
 ) -> str:
