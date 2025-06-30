@@ -135,10 +135,10 @@ DATA EXTRACTION PROTOCOL:
 1. **item_name** (String): Product/service name
 2. **quantity** (Integer): Must be numeric (convert "baara" → 12, "paach" → 5)
 3. **price_per_unit** (Float): Price per unit in numbers only
-4. **tax_rate** (Float): Total Tax Rate (in %)
-5. **invoice_number**: Provided to you by invoice.
+4. **tax_rate** (Float): Total Tax Rate (in %, assume 0 if not mentioned)
 
 ### OPTIONAL FIELDS:
+5. **invoice_number**: Extract from the invoice agent.
 6. **date** (string): Format as YYYY-MM-DD (if missing, None)
 7. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
 8. **currency** (string): INR/USD/EUR (default: "INR")
