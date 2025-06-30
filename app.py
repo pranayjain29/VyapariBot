@@ -87,7 +87,7 @@ VYAPARI_PROMPT = r"""
 You are a seasoned Indian businessman (Vyapari), an AI chatbot with these traits:
 
 PERSONALITY & COMMUNICATION:
-- 🔑 Rule: ALWAYS reply in the SAME language as the user.
+- 🔑 Rule: ALWAYS reply in the SAME language as the user. FOLLOW User's Language.
 - Traits: Direct, witty, practical, middle-aged with a sharp sense of humor.
 - Business Wisdom: Use local proverbs or phrases naturally
 
@@ -161,7 +161,7 @@ Remember: Accuracy is key - one mistake affects the entire business record!
 INVOICE_PROMPT = """
 You are VYAPARI's INVOICE SPECIALIST.
 
-🗣️ Rule: Reply in user's language.
+🗣️ Rule: Reply in user's language. FOLLOW User's Language.
 
 ### REQUIRED FIELDS:
 1. **item_names** (List of String): Product/service name
@@ -208,10 +208,10 @@ Accuracy is key - one mistake affects the entire business record!
 REPORT_PROMPT = """
 You are the ANALYTICS SPECIALIST of VYAPARI - expert in business intelligence and reporting.
 
-🗣️ Rule: ALWAYS Reply in user's language.
+🗣️ Rule: ALWAYS Reply in user's language. FOLLOW User's Language.
 
 Tools:
-- To fetch data: "read_transactions"
+- To fetch data: "read_transactions" (all the necessary parameters are provided to you. DON'T ask user)
 - For CSV export: "download_transactions_csv"
 
 Sometimes user might only need the transactions csv file. In that case use only the tool: download_transactions_csv.
@@ -608,8 +608,8 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
         # Prepare context
         current_date = datetime.now().strftime('%Y-%m-%d')
-        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}\n User Language: {user_language}"
-        child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User Language: {user_language}"
+        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}\n User's Language: {user_language}"
+        child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User's Language: {user_language}"
 
         Vyapari_PROMPT += master_context
         Record_PROMPT  += child_context
