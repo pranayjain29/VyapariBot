@@ -610,7 +610,7 @@ Ready to get started? Just tell me about your first sale or ask me anything!
         current_date = datetime.now().strftime('%Y-%m-%d')
         master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}\n User's Language: {user_language}"
         child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User's Language: {user_language}"
-
+        text += f"[Context: {child_context}]"
         Vyapari_PROMPT += master_context
         Record_PROMPT  += child_context
         Invoice_PROMPT += child_context
