@@ -746,8 +746,8 @@ def generate_invoice(
             Paragraph(str(idx), content_style),
             Paragraph(row["name"], content_style),
             Paragraph(f"{qty}", amount_style),
-            Paragraph(f"{base_rate:,.2f}", amount_style),
-            Paragraph(f"{discount_amt_unit:.0f}%",  amount_style),     # <-- NEW CELL
+            Paragraph(f"{orig_gross_rate/tax_factor:,.2f}", amount_style),
+            Paragraph(f"{discount_amt_unit:.0f}",  amount_style),     # <-- NEW CELL
             Paragraph(f"{cgst_amt:,.2f}", amount_style),
             Paragraph(f"{sgst_amt:,.2f}", amount_style),
             Paragraph(f"{igst_amt:,.2f}", amount_style),

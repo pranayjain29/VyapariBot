@@ -526,8 +526,8 @@ Required: Product name, quantity, and price per unit
 Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
 
 Example texts:
-- "I sold 5 packets of tea for ₹20 each to Ram"
-- "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card"
+- "I sold 5 packets of tea for ₹20 each to Ram. Discount rupees 5"
+- "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card. Discount of 10%."
 - "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
 
 2. Download Data & Business Insights
