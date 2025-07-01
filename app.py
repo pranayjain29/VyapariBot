@@ -138,12 +138,13 @@ DATA EXTRACTION PROTOCOL:
 4. **tax_rate** (Float): Total Tax Rate (in %, assume 0 if not mentioned)
 
 ### OPTIONAL FIELDS:
-5. **invoice_number**: Extract from the invoice agent.
-6. **date** (string): Format as YYYY-MM-DD (if missing, None)
-7. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-8. **currency** (string): INR/USD/EUR (default: "INR")
-9. **customer_name** (string): If mentioned
-10. **customer_details** (string): Phone, address if provided, all in one string format.
+5. **discount_per_unit**: Discount per unit given (if given in %, calculate % from price_per_unit. If not given, assume 0)
+6. **invoice_number**: Extract from the invoice agent.
+7. **date** (string): Format as YYYY-MM-DD (if missing, None)
+8. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+9. **currency** (string): INR/USD/EUR (default: "INR")
+10. **customer_name** (string): If mentioned
+11. **customer_details** (string): Phone, address if provided, all in one string format.
 
 PROCESSING WORKFLOW:
 ### STEP 1: DATA VALIDATION
@@ -167,16 +168,17 @@ You are VYAPARI's INVOICE SPECIALIST.
 1. **item_names** (List of String): Product/service name
 2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5, if not mentioned take it as 1)
 3. **prices** (List of float): Price per unit in numbers only
-4. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
-5. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
+4. **discounts** (List of float): discount per unit given for that item. (Assume 0.0 if not provided)
+5. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
+6. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
 
 ### OPTIONAL FIELDS:
-6. **company details**: Various company details like name, address, etc.
-7. **date** (string): Format as YYYY-MM-DD (if missing, today's date)
-8. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-9. **currency** (string): INR/USD/EUR (default: "INR")
-10. **customer_name** (string): If mentioned
-11. **customer_details** (String): Phone, address if provided
+7. **company details**: Various company details like name, address, etc.
+8. **date** (string): Format as YYYY-MM-DD (if missing, today's date)
+9. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+10. **currency** (string): INR/USD/EUR (default: "INR")
+11. **customer_name** (string): If mentioned
+12. **customer_details** (String): Phone, address if provided
 
 If some fields are not provided, please don't pass it as an argument.
 
@@ -194,7 +196,8 @@ PROCESSING WORKFLOW:
     chat_id: int,
     item_names: List[str],
     quantities: List[int],
-    prices: List[float]
+    prices: List[float],
+    discounts: List[float]
     )
 - Include ALL transaction items in single invoice
 
@@ -341,6 +344,7 @@ def handle_invoice_request(
     item_names: List[str],
     quantities: List[int],
     prices: List[float],
+    discounts: List[float],
     date: str,
     payment_method: str,
 
@@ -390,8 +394,8 @@ def handle_invoice_request(
 
         # Build the structure expected by generate_invoice
         items = [
-            {"name": n, "qty": q, "rate": p}
-            for n, q, p in zip(item_names, quantities, prices)
+            {"name": n, "qty": q, "rate": p, "discount": d}
+            for n, q, p, d in zip(item_names, quantities, prices, discounts)
         ]
 
         # Call the updated invoice generator
@@ -471,6 +475,7 @@ async def telegram_webhook(request: Request):
             return 'OK'
             
         message = update['message']
+        print(message)
         chat_id = message['chat']['id']
         user_name = (
             message.get('from', {}).get('username')      # preferred: Telegram @handle

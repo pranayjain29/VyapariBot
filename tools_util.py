@@ -329,7 +329,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
         return "❌ Error in generating CSV."
 
 @function_tool
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, discount_per_unit: float = 0.0, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
     try:
@@ -342,6 +342,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "quantity": quantity,
             "price_per_unit": price_per_unit,
             "total_price_including_tax": price_per_unit*quantity,
+            "discount_given": discount_per_unit*quantity,
             "tax_amount": tax_rate*price_per_unit*quantity/100,
             "tax_rate": tax_rate,
             "raw_message": raw_message,
@@ -494,38 +495,57 @@ footer_style = ParagraphStyle(
     spaceAfter=5
 )
 
-def _totals_table(doc_width: float,
-                  subtotal: float,
-                  total_cgst: float,
-                  total_sgst: float,
-                  total_igst: float,
-                  grand: float):
+def _totals_table(
+    doc_width     : float,
+    subtotal      : float,   # taxable value AFTER discount
+    discount_total: float,   # total ₹ discount (positive number)
+    total_cgst    : float,
+    total_sgst    : float,
+    total_igst    : float,
+    grand         : float,   # final payable (subtotal + taxes)
+):
+    """
+    Build the 2-column totals block.
+
+    subtotal       – Taxable value after discount
+    discount_total – Aggregate discount (₹, positive)
+    grand          – Payable amount after taxes
+    """
 
     rows = [
-        #  (label,          value,            is_grand?)
-        ("Sub-Total (ex-GST):",  subtotal,     False),
-        (f"CGST:",                total_cgst,  False),
-        (f"SGST:",                total_sgst,  False),
-        (f"IGST:",                total_igst,  False),
-        ("Grand Total:",          grand,       True),
+        # (label,                       value,   is_grand_row?)
+        ("Taxable Value (A):",          subtotal + discount_total, False),
+        ("Less: Discount (B):",        -discount_total,            False),
+        ("Net Taxable (A−B):",          subtotal,                  False),
+        ("CGST:",                       total_cgst,                False),
+        ("SGST:",                       total_sgst,                False),
+        ("IGST:",                       total_igst,                False),
+        ("Grand Total:",                grand,                     True),
     ]
 
     data = []
-    for lbl, val, is_grand in rows:
-        lab_sty  = grand_label_style  if is_grand else total_label_style
-        amt_sty  = grand_amount_style if is_grand else amount_style_bold
-        data.append([Paragraph(lbl, lab_sty),
-                     Paragraph(f"INR {val:,.2f}", amt_sty)])
+    for label, value, is_grand in rows:
+        lab_style = grand_label_style  if is_grand else total_label_style
+        amt_style = grand_amount_style if is_grand else amount_style_bold
+        data.append([
+            Paragraph(label, lab_style),
+            Paragraph(f"INR {value:,.2f}", amt_style)
+        ])
 
     tbl = Table(data, colWidths=[doc_width - 1.8*inch, 1.8*inch])
     tbl.setStyle(TableStyle([
-        ('ALIGN',  (0,0), (-1,-1), 'RIGHT'),
-        ('RIGHTPADDING',(0,0),(-1,-1), 0),
-        ('TOPPADDING',  (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING',(0,0),(-1,-1), 4),
-        ('LINEABOVE',  (0,4), (-1,4),  0.7, colors.HexColor("#1a365d")), # Grand
-        ('BACKGROUND',(0,4), (-1,4),  colors.HexColor("#f7fafc")),       # Grand
+        ("ALIGN",        (0, 0), (-1, -1), "RIGHT"),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+
+        # Heavy rule & background only for Grand-Total row
+        ("LINEABOVE",    (0, len(rows)-1), (-1, len(rows)-1),
+                         0.7, colors.HexColor("#1a365d")),
+        ("BACKGROUND",   (0, len(rows)-1), (-1, len(rows)-1),
+                         colors.HexColor("#f7fafc")),
     ]))
+
     return tbl
 
 # ---------- minimal word look-ups ----------
@@ -667,14 +687,15 @@ def generate_invoice(
     # ----------------------------- ITEM TABLE ---------------------------------------
     # 1. Table header
     items_header = [[
-        Paragraph("S.No.", table_header_style),
-        Paragraph("Description", table_header_style),
-        Paragraph("Qty", table_header_style),
-        Paragraph("Rate<br/>(ex-GST)", table_header_style),
-        Paragraph(f"CGST<br/>{cgst_rate}%", table_header_style),
-        Paragraph(f"SGST<br/>{sgst_rate}%", table_header_style),
-        Paragraph(f"IGST<br/>{igst_rate}%", table_header_style),
-        Paragraph("Total<br/>(incl. GST)", table_header_style),
+    Paragraph("S.No.", table_header_style),
+    Paragraph("Description", table_header_style),
+    Paragraph("Qty", table_header_style),
+    Paragraph("Rate<br/>(ex-GST)", table_header_style),
+    Paragraph("Discount<br/>", table_header_style),        # <-- NEW
+    Paragraph(f"CGST<br/>{cgst_rate}%", table_header_style),
+    Paragraph(f"SGST<br/>{sgst_rate}%", table_header_style),
+    Paragraph(f"IGST<br/>{igst_rate}%", table_header_style),
+    Paragraph("Total<br/>(incl. GST)", table_header_style),
     ]]
     items_data = items_header
 
@@ -684,10 +705,11 @@ def generate_invoice(
     rate_w    = 0.85*inch
     tax_w     = 0.80*inch         # for each of CGST/SGST/IGST
     gross_w   = 0.95*inch
-    fixed_total = serial_w + qty_w + rate_w + gross_w + 3*tax_w
-    desc_w    = max(1.2*inch, doc.width - fixed_total)  # whatever space is left
-    col_widths = [
+    disc_w    = 0.65*inch
+    fixed_total = serial_w + qty_w + rate_w + disc_w + gross_w + 3*tax_w
+    col_widths  = [
         serial_w, desc_w, qty_w, rate_w,
+        disc_w,                      # <-- NEW
         tax_w, tax_w, tax_w, gross_w
     ]
 
@@ -695,10 +717,17 @@ def generate_invoice(
     subtotal = total_cgst = total_sgst = total_igst = grand = 0.0
     tax_pct = cgst_rate + sgst_rate + igst_rate
     tax_factor = 1 + tax_pct/100.0
+    discount_total = 0.0      # aggregate discount rupee amount
 
     for idx, row in enumerate(items, start=1):
-        gross_rate = row["rate"]        # inclusive
-        qty        = row["qty"]
+
+        orig_gross_rate = row["rate"]   # inclusive of GST
+        qty = row["qty"]
+                      
+        discount_amt_unit = row.get("discount", 0)  
+        gross_rate        = orig_gross_rate - discount_amt_unit
+        discount_total   += discount_amt_unit * qty
+
         base_rate  = gross_rate / tax_factor
         cgst_amt   = (base_rate*cgst_rate/100.0)*qty
         sgst_amt   = (base_rate*sgst_rate/100.0)*qty
@@ -717,6 +746,7 @@ def generate_invoice(
             Paragraph(row["name"], content_style),
             Paragraph(f"{qty}", amount_style),
             Paragraph(f"{base_rate:,.2f}", amount_style),
+            Paragraph(f"{discount_amt_unit:.0f}%",  amount_style),     # <-- NEW CELL
             Paragraph(f"{cgst_amt:,.2f}", amount_style),
             Paragraph(f"{sgst_amt:,.2f}", amount_style),
             Paragraph(f"{igst_amt:,.2f}", amount_style),
@@ -744,7 +774,7 @@ def generate_invoice(
     elements += [item_table, Spacer(1,15)]
 
     # ----------------------------  TOTALS  ------------------------------------------
-    elements.append(_totals_table(doc.width, subtotal, total_cgst, total_sgst,
+    elements.append(_totals_table(doc.width, subtotal, discount_total, total_cgst, total_sgst,
                       total_igst, grand))
 
     # -------------------------- footer / build  -------------------------------------
