@@ -707,6 +707,7 @@ def generate_invoice(
     gross_w   = 0.95*inch
     disc_w    = 0.65*inch
     fixed_total = serial_w + qty_w + rate_w + disc_w + gross_w + 3*tax_w
+    desc_w = max(1.2*inch, doc.width - fixed_total) # whatever space is left
     col_widths  = [
         serial_w, desc_w, qty_w, rate_w,
         disc_w,                      # <-- NEW
