@@ -277,6 +277,11 @@ def update_user_field(chat_id: int, column: str, value: Any):
 def read_transactions(chat_id: int):
     """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
     try:
+        await send(
+        "<b>🔍 Reading your transactions...</b> ⏳<br>"
+        "Just a second — pulling everything together for you!"
+        # Ensure your send helper uses parse_mode='HTML'
+        )
         response = supabase.table('vyapari_transactions').select('*').eq('chat_id', str(chat_id)).execute()
         # Convert chat_id back to integer for consistency if needed elsewhere,
         # but the data from DB will have it as string based on how it's stored.
@@ -313,7 +318,7 @@ def download_Transactions_CSV(chat_id: int) -> str:
 
         if not data:
             return "❌ Bhai, there is no transaction for this chat_id."
-
+        
         # ── 3. Write CSV to temp file ───────────────────────────────────────
         file_name = f"transactions_{chat_id}_{datetime.now().strftime('%Y-%m')}_{datetime.now().strftime('%d%H%M')}.csv"
         with open(file_name, "w", newline="", encoding="utf-8") as f:
