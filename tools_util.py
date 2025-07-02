@@ -11,6 +11,7 @@ import csv, tempfile, os
 from agents import Agent, Runner, trace, function_tool
 from typing import List, Dict, Any, Union
 from decimal import Decimal, ROUND_HALF_UP
+from app import *
 
 # Initialize Supabase client
 url: str = os.environ.get("SUPABASE_URL_KEY")
@@ -274,10 +275,10 @@ def update_user_field(chat_id: int, column: str, value: Any):
         return None
 
 @function_tool
-def read_transactions(chat_id: int):
+async def read_transactions(chat_id: int):
     """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
     try:
-        await send(
+        await send_telegram_message(chat_id,
         "<b>🔍 Reading your transactions...</b> ⏳<br>"
         "Just a second — pulling everything together for you!"
         # Ensure your send helper uses parse_mode='HTML'
