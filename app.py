@@ -350,6 +350,14 @@ async def request_phone_number(chat_id):
         reply_markup=keyboard,
     )
 
+async def remove_keyboard(chat_id: int, text: str = "✅ Thanks! You're all set."):
+    """Sends a message that removes the custom reply keyboard."""
+    await send_telegram_message(
+        chat_id,
+        text,
+        reply_markup={"remove_keyboard": True},
+    )
+
 
 @function_tool
 def handle_invoice_request(
@@ -498,10 +506,11 @@ async def telegram_webhook(request: Request):
             phone_number = message["contact"].get("phone_number")
             if phone_number:
                 await run_blocking(update_user_field, chat_id, "phone", phone_number)
-                await send("✅ Got it! Thanks for sharing your number.")
+                # remove the keyboard right after storing
+                await remove_keyboard(chat_id)
             return "OK"
 
-        
+
         user_name = (
             message.get('from', {}).get('username')      # preferred: Telegram @handle
             or message.get('from', {}).get('first_name') # fallback to first name
