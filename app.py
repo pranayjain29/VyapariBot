@@ -490,7 +490,11 @@ async def telegram_webhook(request: Request):
         message = update['message']
         print(message)
         chat_id = message['chat']['id']
-        
+
+        # Telegram send
+        async def send(msg: str):
+            await send_telegram_message(chat_id, msg)
+
         if "contact" in message:
             phone_number = message["contact"].get("phone_number")
             if phone_number:
@@ -515,12 +519,10 @@ async def telegram_webhook(request: Request):
         print(user_name)
         print(message.get('text', ''))
 
-        # -------------- off-load ALL synchronous helpers --------------
-        # (1) Telegram send
-        async def send(msg: str):
-            await send_telegram_message(chat_id, msg)
+        # -------------- synchronous helpers --------------
+        
 
-        # (2) DB helpers
+        # (1) DB helpers
         read_val   = lambda col: run_blocking(
             read_value_by_chat_id,
             table_name="vyapari_user",
