@@ -486,6 +486,10 @@ async def telegram_webhook(request: Request):
         
         if 'message' not in update:
             return 'OK'
+
+        message = update['message']
+        print(message)
+        chat_id = message['chat']['id']
         
         if "contact" in message:
             phone_number = message["contact"].get("phone_number")
@@ -494,9 +498,7 @@ async def telegram_webhook(request: Request):
                 await send("✅ Got it! Thanks for sharing your number.")
             return "OK"
 
-        message = update['message']
-        print(message)
-        chat_id = message['chat']['id']
+        
         user_name = (
             message.get('from', {}).get('username')      # preferred: Telegram @handle
             or message.get('from', {}).get('first_name') # fallback to first name
