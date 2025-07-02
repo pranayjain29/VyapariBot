@@ -514,9 +514,7 @@ def _totals_table(
 
     rows = [
         # (label,                       value,   is_grand_row?)
-        ("Taxable Value (A):",          subtotal + discount_total, False),
-        ("Less: Discount (B):",        -discount_total,            False),
-        ("Net Taxable (A−B):",          subtotal,                  False),
+        ("Net Taxable:",                subtotal,                  False),
         ("CGST:",                       total_cgst,                False),
         ("SGST:",                       total_sgst,                False),
         ("IGST:",                       total_igst,                False),
@@ -747,7 +745,7 @@ def generate_invoice(
             Paragraph(row["name"], content_style),
             Paragraph(f"{qty}", amount_style),
             Paragraph(f"{orig_gross_rate/tax_factor:,.2f}", amount_style),
-            Paragraph(f"{discount_amt_unit:.0f}",  amount_style),     # <-- NEW CELL
+            Paragraph(f"{discount_amt_unit:.2f}",  amount_style),     # <-- NEW CELL
             Paragraph(f"{cgst_amt:,.2f}", amount_style),
             Paragraph(f"{sgst_amt:,.2f}", amount_style),
             Paragraph(f"{igst_amt:,.2f}", amount_style),
