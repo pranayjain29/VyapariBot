@@ -638,9 +638,9 @@ def generate_invoice(
     elements = []
     if not invoice_number:
         invoice_number = (
-            f"INV_{chat_id}/{datetime.now(timezone.utc).strftime('%Y-%m')}/"
-            f"{datetime.now(timezone.utc).strftime('%d%H%M')}"
-        )
+        f"INV_{chat_id}/{datetime.now(timezone.utc).strftime('%Y-%m')}/"
+        f"{datetime.now(timezone.utc).strftime('%d%H%M%S')}"   # seconds added → %S
+    )
 
     # ----------------------------- header / customer (unchanged) --------------------
     elements.append(Paragraph(company_name, company_style))
