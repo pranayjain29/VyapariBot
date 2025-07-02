@@ -488,7 +488,6 @@ async def telegram_webhook(request: Request):
             return 'OK'
 
         message = update['message']
-        print(message)
         chat_id = message['chat']['id']
 
         # Telegram send
@@ -529,6 +528,50 @@ async def telegram_webhook(request: Request):
             chat_id=chat_id,
             column_name=col,
         )
+
+        
+        async def send_chat_action(chat_id: int, action: str = "typing"):
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(
+                    f"{TELEGRAM_API_URL}/sendChatAction",
+                    json={"chat_id": chat_id, "action": action},
+                )
+
+        async def typing_spinner(chat_id: int, stop_evt: asyncio.Event, every: int = 3):
+            """
+            Sends 'typing' every <every> seconds until stop_evt is set().
+            """
+            try:
+                while not stop_evt.is_set():
+                    await send_chat_action(chat_id, "typing")
+                    await asyncio.sleep(every)
+            except Exception as e:
+                logger.warning(f"typing_spinner error: {e}")
+
+
+        async def run_with_progress(chat_id: int, coro, ack_msg="👍 Got it…", done_msg=None):
+            """
+            1) Fires an immediate ack to the user.
+            2) Shows 'typing' while <coro> runs.
+            3) Optionally pushes <done_msg> after success.
+            Returns coro's result.
+            """
+            await send_telegram_message(chat_id, ack_msg)
+
+            stop_evt = asyncio.Event()
+            spinner  = asyncio.create_task(typing_spinner(chat_id, stop_evt))
+
+            try:
+                result = await coro          # await the real long task
+            finally:
+                stop_evt.set()               # stop spinner even on error
+                await spinner
+
+            if done_msg:
+                await send_telegram_message(chat_id, done_msg)
+
+            return result
+
         
         user_record_future     = run_blocking(read_user, chat_id)
         last_messages_future   = run_blocking(get_last_messages, chat_id)
@@ -681,10 +724,15 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
-            response = await asyncio.wait_for(
-                    Runner.run(Vyapari_Agent, text), 
-                    timeout=120 # 2 minute timeout
-                )
+            response = await run_with_progress(          # <<< NEW
+                chat_id,
+                asyncio.wait_for(
+                    Runner.run(Vyapari_Agent, text),
+                    timeout=120,
+                ),
+                ack_msg="🤔 Let me figure that out…",    # appears instantly
+                # done_msg can be omitted; final_output arrives right after
+            )
 
         await send(response.final_output)
         bot_text = "Assitant: "
