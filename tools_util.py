@@ -343,7 +343,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "price_per_unit": price_per_unit,
             "total_price_including_tax": price_per_unit*quantity,
             "discount_given": discount_per_unit*quantity,
-            "tax_amount": tax_rate*price_per_unit*quantity/100,
+            "tax_amount": quantity*(price_per_unit-discount_per_unit)*tax_rate/(100+tax_rate),
             "tax_rate": tax_rate,
             "raw_message": raw_message,
             "payment_method": payment_method,
