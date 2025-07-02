@@ -339,7 +339,7 @@ async def send_telegram_message(chat_id, text):
         return False
 
 @function_tool
-async def handle_invoice_request(
+def handle_invoice_request(
     chat_id: int,
     item_names: List[str],
     quantities: List[int],
@@ -391,12 +391,6 @@ async def handle_invoice_request(
                 return f"❌ Invalid quantity at position {i+1}"
             if not isinstance(price, (int, float)) or price <= 0:
                 return f"❌ Invalid price at position {i+1}"
-        
-        await send_telegram_message(chat_id,
-        "<b>🧾 Generating your invoice...</b> ⏳<br>"
-        "Hang tight – I’ll send it over in just a moment!"
-        # Make sure parse_mode='HTML' in your send helper
-        )
 
         # Build the structure expected by generate_invoice
         items = [
@@ -446,17 +440,13 @@ async def handle_invoice_request(
         return "❌ Sorry, there was an error generating the invoice. Please try again."
  
 @function_tool
-async def download_transactions_csv(chat_id: int) -> str:
+def download_transactions_csv(chat_id: int) -> str:
     """
     Fetches transactions via read_transactions(), writes them to a temporary
     CSV file, sends it to the user, then deletes the temp file.
 
     """
     try:
-        await send_telegram_message(chat_id,
-        "<b>📥 Downloading your transactions...</b> ⏳<br>"
-        "Sit tight – I’ll share the file with you shortly!"
-        )
         csv_name = download_Transactions_CSV(chat_id=chat_id)
 
         # ──  Send file via Telegram ─────

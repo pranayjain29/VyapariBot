@@ -275,14 +275,9 @@ def update_user_field(chat_id: int, column: str, value: Any):
         return None
 
 @function_tool
-async def read_transactions(chat_id: int):
+def read_transactions(chat_id: int):
     """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
     try:
-        await send_telegram_message(chat_id,
-        "<b>🔍 Reading your transactions...</b> ⏳<br>"
-        "Just a second — pulling everything together for you!"
-        # Ensure your send helper uses parse_mode='HTML'
-        )
         response = supabase.table('vyapari_transactions').select('*').eq('chat_id', str(chat_id)).execute()
         # Convert chat_id back to integer for consistency if needed elsewhere,
         # but the data from DB will have it as string based on how it's stored.
