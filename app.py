@@ -343,6 +343,7 @@ async def handle_delete_callback(cq: dict):
     msg_id   = cq["message"]["message_id"]
     payload  = cq["data"]                        # e.g.  del_date|2025-07-05T00:00:00+00:00
     action, *parts = payload.split("|")
+    print(f"Action is: {action}. Parts is {parts[0]}")
 
     async def edit(text: str, kb: dict | None = None):
         async with httpx.AsyncClient(timeout=10) as c:
