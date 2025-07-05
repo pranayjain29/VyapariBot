@@ -696,11 +696,11 @@ Ready to get started? Just tell me about your first sale or ask me anything!
                 instructions=Vyapari_PROMPT, 
                 model=model1,
                 tools = [Invoice_Agent.as_tool(
-                tool_name="Invoice Generator And Transaction Recorder",
+                tool_name="Invoice_Generator_And_Transaction_Recorder",
                 tool_description="Generates Invoice and Records the Transaction",
                 ),
                 Report_Agent.as_tool(
-                    tool_name="Report Generator",
+                    tool_name="Report_Generator",
                     tool_description="Analyzes Data, Generates Report,  Downloads CSV for transactions."
                 )])
 
