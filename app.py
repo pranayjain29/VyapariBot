@@ -373,7 +373,6 @@ async def handle_delete_callback(cq: dict):
         date_iso = parts[0]                      # keep the full ISO stamp
         date_short = date_iso[:10]         # 2025-07-05
         invs = get_invoice_numbers(chat_id, date_iso)
-        print(f"Invs are: {invs}")
         if not invs:
             await edit("No invoices found for that date.")
             return
@@ -383,12 +382,11 @@ async def handle_delete_callback(cq: dict):
     if action == "del_inv":
         date_short, inv = parts            # we receive the short date now
         items = get_item_names(chat_id, inv)
-        print(f"Parts are {parts}.\nItems are: {items}")
         if not items:
             await edit("No items under that invoice.")
             return
         await edit(f"Invoice {inv}\nSelect item to delete:",
-               kb_for_items(items, date_short, inv))
+               kb_for_items(items, inv))
         return
 
     if action == "del_item":
