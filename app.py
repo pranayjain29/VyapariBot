@@ -257,6 +257,9 @@ FORMATTING:
     • Basic HTML tags listed ONLY. NOTHING ELSE:
         <b>, <strong>, <i>
     • Bullet / numbered lists.
+    
+    NOT ALLOWED
+    •  Advanced formatting like <li>, etc are NOT allowed. Please don't use it.
 
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
