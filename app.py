@@ -292,9 +292,16 @@ def kb_for_invoices(inv_numbers: list[str], date_iso: str) -> dict:
     rows.append(make_cancel_btn("date"))
     return {"inline_keyboard": rows}
 
-def kb_for_items(items: list[str], date: str, inv: str) -> dict:
+def kb_for_items(items: list[str], inv: str) -> dict:
+    """
+    We no longer embed the (long) invoice number *and* the item name
+    in the callback_data.  We only pass the item name.
+    """
     rows = [
-        [{"text": itm, "callback_data": f"del_item|{date}|{inv}|{itm}"}]
+        [{
+            "text": itm,
+            "callback_data": f"del_item|{inv}|{itm}"[:MAX_CB]  # just in case
+        }]
         for itm in items
     ]
     rows.append(make_cancel_btn("inv"))
