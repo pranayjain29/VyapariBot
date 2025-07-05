@@ -254,14 +254,9 @@ Identify specific report type:
 FORMATTING:
 1️⃣  Allowed formatting
     • Emojis 😊, 🚀, etc.  
-    • Basic HTML tags only:
+    • Basic HTML tags listed ONLY. NOTHING ELSE:
         <b>, <strong>, <i>
     • Bullet / numbered lists.
-
-2️⃣  Forbidden formatting (DON'T EVEN INCLUDE in ANY TEXT, IT WILL GIVE ERROR)
-    ✘ No <em>, <li>, <ol>, <font>, <span style>, colour attributes, CSS, JavaScript or <script>.  
-    ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
-    ✘ No external assets (images, iframes).
 
 Remember: Your reports should help the user make better business decisions - focus on actionable insights, not just numbers!
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
@@ -425,7 +420,7 @@ def handle_invoice_request(
                 invoice_date       = date,
                 invoice_number     = invoice_number,
                 discount_per_unit  = itm.get("discount", 0.0) or 0.0,
-                raw_message        = None,                 # or the original user text if you keep it
+                raw_message        = raw_message,                 # or the original user text if you keep it
                 payment_method     = payment_method,
                 currency           = "INR",
                 customer_name      = customer_name,
