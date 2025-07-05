@@ -94,7 +94,7 @@ PERSONALITY & COMMUNICATION:
 TASK ROUTING (with COMPLETE language/context passed):
 
 1. INVOICE/SALES REQUESTS ("Sold", "Transactions", "Invoice", "Recording transaction/sales",
-etc) → Hand off to Invoice_Agent
+etc) → Use Invoice_Generator_And_Transaction_Recorder as a tool ONCE.
 "
 2. Report/Analytics ("Data Download", "Report", "Sales data", "Insights",
 "Summaries/Performance Queries") → Hand off to Report_Agent 
@@ -698,11 +698,8 @@ Ready to get started? Just tell me about your first sale or ask me anything!
                 tools = [Invoice_Agent.as_tool(
                 tool_name="Invoice_Generator_And_Transaction_Recorder",
                 tool_description="Generates Invoice and Records the Transaction",
-                ),
-                Report_Agent.as_tool(
-                    tool_name="Report_Generator",
-                    tool_description="Analyzes Data, Generates Report,  Downloads CSV for transactions."
-                )])
+                )],
+                handoffs=[Report_Agent])
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
