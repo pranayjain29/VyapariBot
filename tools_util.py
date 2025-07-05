@@ -343,8 +343,10 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
         .eq("item_name",      item_name)
         .execute()
     )
-    print(f"Resp is {resp}. Resp count is {resp.count}")
-    return resp.count == 1   
+
+    deleted_rows = resp.data if hasattr(resp, "data") else resp.get("data", [])
+    print(f"Supabase delete response → rows deleted: {len(deleted_rows)}")
+    return deleted_rows == 1
 
 def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, discount_per_unit: float = 0.0, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
