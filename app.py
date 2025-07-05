@@ -694,8 +694,15 @@ Ready to get started? Just tell me about your first sale or ask me anything!
         Vyapari_Agent = Agent(
                 name="Vyapari", 
                 instructions=Vyapari_PROMPT, 
-                model=model2,
-                handoffs=[Invoice_Agent, Report_Agent])
+                model=model1,
+                tools = [Invoice_Agent.as_tool(
+                tool_name="Invoice Generator And Transaction Recorder",
+                tool_description="Generates Invoice and Records the Transaction",
+                ),
+                Report_Agent.as_tool(
+                    tool_name="Report Generator",
+                    tool_description="Analyzes Data, Generates Report,  Downloads CSV for transactions."
+                )])
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
