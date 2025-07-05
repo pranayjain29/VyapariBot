@@ -362,6 +362,7 @@ async def handle_delete_callback(cq: dict):
     if action == "del_date":
         date_iso = parts[0]                      # keep the full ISO stamp
         invs = get_invoice_numbers(chat_id, date_iso)
+        print(f"Invs are: {invs}")
         if not invs:
             await edit("No invoices found for that date.")
             return
