@@ -376,6 +376,7 @@ async def handle_delete_callback(cq: dict):
     if action == "del_inv":
         date_short, inv = parts            # we receive the short date now
         items = get_item_names(chat_id, inv)
+        print(f"Parts are {parts}.\nItems are: {items}")
         if not items:
             await edit("No items under that invoice.")
             return
@@ -387,10 +388,12 @@ async def handle_delete_callback(cq: dict):
         date_short, inv, item = parts
         ok = delete_transaction(chat_id, inv, item)
         await edit("✅ Deleted." if ok else "❌ Nothing deleted.")
+        await send_tx_template_button(chat_id)
         return
 
     if action == "del_cancel":
         await edit("❌ Delete operation cancelled.")
+        await send_tx_template_button(chat_id)
         return
 
 
