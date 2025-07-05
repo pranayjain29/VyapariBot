@@ -347,7 +347,6 @@ async def handle_delete_callback(cq: dict):
     msg_id   = cq["message"]["message_id"]
     payload  = cq["data"]                        # e.g.  del_date|2025-07-05T00:00:00+00:00
     action, *parts = payload.split("|")
-    print(f"Action is: {action}. Parts is {parts[0]}")
 
     async def edit(text: str, kb: dict | None = None):
         async with httpx.AsyncClient(timeout=10) as c:
@@ -633,7 +632,6 @@ async def telegram_webhook(request: Request):
         update = await request.json()
 
          # ─── Callback queries (inline-keyboard clicks) ───
-        print(f"Update is {update}")
         if "callback_query" in update:
             await handle_delete_callback(update["callback_query"])
             return "OK"          # stop here; no 'message' field in this update
