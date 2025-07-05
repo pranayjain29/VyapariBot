@@ -276,11 +276,13 @@ async def send_tx_template_button(chat_id: int):
     # The text that will appear in the input field
     template = (
         "Record Transaction:\n"
-        "Item: <item name>\n"
-        "Quantity: 1\n"
-        "Price per unit: 0\n"
-        "Discount per unit: 0\n"
-        f"Date: {today}\n"
+        "Item(s): <item name>\n"
+        "Quantity(s): 1\n"
+        "Price(s) per unit: 0\n"
+        "Discount(s) per unit: 0\n",
+        "GST: 0\n",
+        f"Date: {today}\n",
+        "Customer Name and Details: \n",
         "Payment method: cash\n"
         "(You can edit any value before sending.)"
     )
