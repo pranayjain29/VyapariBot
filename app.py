@@ -527,7 +527,7 @@ async def telegram_webhook(request: Request):
                     json={"chat_id": chat_id, "action": action},
                 )
 
-        async def typing_spinner(chat_id: int, stop_evt: asyncio.Event, every: int = 3):
+        async def typing_spinner(chat_id: int, stop_evt: asyncio.Event, every: int = 2):
             """
             Sends 'typing' every <every> seconds until stop_evt is set().
             """
@@ -668,9 +668,8 @@ Ready to get started? Just tell me about your first sale or ask me anything!
             f"[{m['message_date']}] {m['message_text']}" for m in last_msgs
         )
 
-        global VYAPARI_PROMPT, RECORD_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
+        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
         Vyapari_PROMPT = VYAPARI_PROMPT
-        Record_PROMPT = RECORD_PROMPT
         Invoice_PROMPT = INVOICE_PROMPT
         Report_PROMPT = REPORT_PROMPT
 
@@ -681,7 +680,6 @@ Ready to get started? Just tell me about your first sale or ask me anything!
         text += f" \n[Context: {child_context}. Speak in user's preferred language only]"
 
         Vyapari_PROMPT += master_context
-        Record_PROMPT  += child_context
         Invoice_PROMPT += child_context
         Report_PROMPT  += child_context
 
