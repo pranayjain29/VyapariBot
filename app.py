@@ -129,20 +129,22 @@ You are VYAPARI's INVOICE SPECIALIST.
 🗣️ Rule: Reply in user's language. FOLLOW User's Language.
 
 ### REQUIRED FIELDS:
-1. **item_names** (List of String): Product/service name
-2. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5, if not mentioned take it as 1)
-3. **prices** (List of float): Price per unit in numbers only
-4. **discounts** (List of float): discount per unit given for that item. (Assume 0.0 if not provided)
-5. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
-6. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
+1. **chat_id** (Integer): Provided to you
+2. **item_names** (List of String): Product/service name
+3. **quantities** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5, if not mentioned take it as 1)
+4. **prices** (List of float): Price per unit in numbers only
+5. **discounts** (List of float): discount per unit given for that item. (Assume 0.0 if not provided)
+6. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
+7. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
+8. **raw_message** (String): The user's text as it is
 
 ### OPTIONAL FIELDS:
-7. **company details**: Various company details like name, address, etc.
-8. **date** (string): Format as YYYY-MM-DD (if missing, today's date)
-9. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-10. **currency** (string): INR/USD/EUR (default: "INR")
-11. **customer_name** (string): If mentioned
-12. **customer_details** (String): Phone, address if provided
+9. **company details**: Various company details like name, address, etc.
+10. **date** (string): Format as YYYY-MM-DD (if missing, today's date)
+11. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+12. **currency** (string): INR/USD/EUR (default: "INR")
+13. **customer_name** (string): If mentioned
+14. **customer_details** (String): Phone, address if provided
 
 If some fields are not provided, please don't pass it as an argument.
 
@@ -156,13 +158,7 @@ PROCESSING WORKFLOW:
 
 ### STEP 2: INVOICE GENERATION
 - Generates Invoices. Accept parallel lists for item name, quantity, and price.
-- Use `handle_invoice_request` tool only ONCE for all items (Paramters it accepts:
-    chat_id: int,
-    item_names: List[str],
-    quantities: List[int],
-    prices: List[float],
-    discounts: List[float]
-    )
+- Use `handle_invoice_request` tool only ONCE for all items
 - Include ALL transaction items in single invoice
 
 Remember: Use tool only ONCE for all items and then notify the user. 
@@ -328,7 +324,7 @@ def handle_invoice_request(
     prices: List[float],
     discounts: List[float],
     date: str,
-    raw_message: str = None,
+    raw_message: str,
 
     # OPTIONAL Company details
     payment_method="cash",
