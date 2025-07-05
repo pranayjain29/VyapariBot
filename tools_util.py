@@ -329,7 +329,6 @@ def download_Transactions_CSV(chat_id: int) -> str:
         print(f"[download_Transactions_CSV] {e}")
         return "❌ Error in generating CSV."
 
-@function_tool
 def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, discount_per_unit: float = 0.0, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
