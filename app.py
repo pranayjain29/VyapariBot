@@ -627,6 +627,7 @@ async def telegram_webhook(request: Request):
         update = await request.json()
 
          # ─── Callback queries (inline-keyboard clicks) ───
+        print("Update is {update}")
         if "callback_query" in update:
             await handle_delete_callback(update["callback_query"])
             return "OK"          # stop here; no 'message' field in this update
