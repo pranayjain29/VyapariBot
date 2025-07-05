@@ -123,42 +123,6 @@ FORMATTING:
 Remember: You're the wise business advisor who knows when to delegate!
 """
 
-RECORD_PROMPT = """
-You are VYAPARI's DATABASE EXPERT, focused on recording transactions.
-
-🗣️ Rule: Always reply in the user's language.
-
-PROCESS:
-
-DATA EXTRACTION PROTOCOL:
-### REQUIRED FIELDS:
-1. **item_name** (String): Product/service name
-2. **quantity** (Integer): Must be numeric (convert "baara" → 12, "paach" → 5)
-3. **price_per_unit** (Float): Price per unit in numbers only
-4. **tax_rate** (Float): Total Tax Rate (in %, assume 0 if not mentioned)
-
-### OPTIONAL FIELDS:
-5. **discount_per_unit**: Discount per unit given (if given in %, calculate % from price_per_unit. If not given, assume 0)
-6. **invoice_number**: Extract from the invoice agent.
-7. **date** (string): Format as YYYY-MM-DD (if missing, None)
-8. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-9. **currency** (string): INR/USD/EUR (default: "INR")
-10. **customer_name** (string): If mentioned
-11. **customer_details** (string): Phone, address if provided, all in one string format.
-
-PROCESSING WORKFLOW:
-### STEP 1: DATA VALIDATION
-- Validate Required Fields.
-
-### STEP 2: TRANSACTION RECORDING  
-- Use 'write_transaction' for EACH item SEPARATELY.
-- Confirm successful recording
-
-After successfully recording, respond to the user.
-
-Remember: Accuracy is key - one mistake affects the entire business record!
-"""
-
 INVOICE_PROMPT = """
 You are VYAPARI's INVOICE SPECIALIST.
 
@@ -201,10 +165,7 @@ PROCESSING WORKFLOW:
     )
 - Include ALL transaction items in single invoice
 
-### STEP 3: DELEGATE TRANSACTION RECORDING
-- After successfully generating invoice ONCE, Handoff to Database_Agent with appropriate details.
-
-Remember: After successfully generating invoice ONCE, Handoff to Database_Agent.
+Remember: Use tool only ONCE for all items and then notify the user. 
 Accuracy is key - one mistake affects the entire business record!
 """
 
@@ -367,6 +328,7 @@ def handle_invoice_request(
     prices: List[float],
     discounts: List[float],
     date: str,
+    raw_message: str = None,
 
     # OPTIONAL Company details
     payment_method="cash",
@@ -454,7 +416,26 @@ def handle_invoice_request(
         except:
             pass
 
-        return f"✅ Invoice generated successfully! Invoice number is {invoice_number}"
+        blended_tax_rate = cgst_rate + sgst_rate + igst_rate        # e.g. 9 + 9 + 0 = 18
+
+        for itm in items:
+            # -> write one DB row per item
+            write_transaction(
+                chat_id            = chat_id,
+                item_name          = itm["name"],
+                quantity           = itm["qty"],
+                price_per_unit     = itm["rate"],
+                tax_rate           = blended_tax_rate,
+                invoice_date       = date,
+                invoice_number     = invoice_number,
+                discount_per_unit  = itm.get("discount", 0.0) or 0.0,
+                raw_message        = None,                 # or the original user text if you keep it
+                payment_method     = payment_method,
+                currency           = "INR",
+                customer_name      = customer_name,
+                customer_details   = customer_details,
+            )
+        return f"✅ Invoice generated and recorded successfully! Invoice number is {invoice_number}"
 
     except Exception as e:
         logger.error(f"Error generating invoice: {str(e)}")
@@ -706,18 +687,11 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
         Invoice_PROMPT += f"\nCompany Details are: {company_details}"
 
-        Database_Agent = Agent(
-                name="Transaction Recorder", 
-                instructions=Record_PROMPT, 
-                model=model1,
-                tools=[write_transaction])
-
         Invoice_Agent = Agent(
                 name="Invoice Generator", 
                 instructions=Invoice_PROMPT, 
                 model=model1,
-                tools=[handle_invoice_request],
-                handoffs=[Database_Agent])
+                tools=[handle_invoice_request])
                 
         Report_Agent = Agent(
                 name="Report Generator", 
