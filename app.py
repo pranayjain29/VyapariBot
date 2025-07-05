@@ -300,7 +300,7 @@ def kb_for_items(items: list[str], inv: str) -> dict:
     rows = [
         [{
             "text": itm,
-            "callback_data": f"del_item|{inv}|{itm}"[:MAX_CB]  # just in case
+            "callback_data": f"del_item|{inv}|{itm}"[:64]  # just in case
         }]
         for itm in items
     ]
