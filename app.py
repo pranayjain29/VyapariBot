@@ -390,7 +390,7 @@ async def handle_delete_callback(cq: dict):
         return
 
     if action == "del_item":
-        date_short, inv, item = parts
+        inv, item = parts
         ok = delete_transaction(chat_id, inv, item)
         await edit("✅ Deleted." if ok else "❌ Nothing deleted.")
         await send_tx_template_button(chat_id)
