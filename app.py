@@ -415,7 +415,6 @@ async def handle_delete_callback(cq: dict):
 
     # ─── OPTION 2: SEARCH BY INVOICE NUMBER ─────────────────────────
     if action == "del_search":
-        PENDING_SEARCH.add(chat_id)            # mark chat as waiting
         await edit("Please send the *exact* invoice number "
                    "(or /cancel to abort).")
         return
@@ -744,7 +743,7 @@ async def telegram_webhook(request: Request):
             if text.lstrip().upper().startswith("INV"):   # ← new detector
                 await handle_invoice_number(msg)
                 return "OK"
-                
+
             # 3. No Messages
             if 'message' not in update:
                 return 'OK'
