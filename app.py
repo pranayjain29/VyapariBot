@@ -904,15 +904,11 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
         # ───────────── /delete entry point ─────────────
         if message.get("text", "") == "/delete":
-            dates = get_distinct_dates(chat_id)
-            if not dates:
-                await send("No transactions found.")
-            else:
-                await send_telegram_message(
-                    chat_id,
-                    "Select invoice date:",
-                    reply_markup=kb_for_dates(dates)
-                )
+            await send_telegram_message(
+                chat_id,
+                "Delete transaction – choose how you want to find it:",
+                reply_markup=kb_delete_entry()       # <- new keyboard
+            )
             return "OK"
 
         if message.get('text', '').startswith(r"/language"):
