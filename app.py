@@ -19,6 +19,8 @@ from agents import Agent, Runner, trace, function_tool
 from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 from datetime import datetime, timedelta, timezone, date
 
+from collections import defaultdict
+
 # Load environment variables
 load_dotenv()
 
@@ -265,6 +267,20 @@ Remember: Your reports should help the user make better business decisions - foc
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
 
+PENDING_SEARCH: set[int] = set()          # chat_ids waiting for an invoice #
+
+def kb_delete_entry() -> dict:
+    """Root menu: Pick Recent or Search."""
+    return {
+        "inline_keyboard": [
+            [{"text": "🕑 Recent (last 10 days)",
+              "callback_data": "del_recent"}],
+            [{"text": "🔍 Search invoice number",
+              "callback_data": "del_search"}],
+            [make_cancel_btn("root")[0]],           # reuse your cancel builder
+        ]
+    }
+
 def make_cancel_btn(level: str) -> list:
     """
     Adds a uniform “❌ Cancel” button. `level` helps us know where to jump back to.
@@ -278,6 +294,20 @@ def kb_for_dates(dates: list[str]) -> dict:
     ]
     rows.append(make_cancel_btn("root"))
     return {"inline_keyboard": rows}
+
+def get_recent_dates(chat_id: int, limit_: int = 10) -> list[str]:
+    """Latest <limit_> distinct invoice dates (ISO)."""
+    q = (
+        supabase
+        .table("vyapari_transactions")
+        .select("invoice_date")
+        .eq("chat_id", str(chat_id))
+        .order("invoice_date", desc=True)
+        .limit(limit_)
+        .execute()
+    )
+    return sorted({r["invoice_date"] for r in q.data}, reverse=True)[:limit_]
+
 
 
 def kb_for_invoices(inv_numbers: list[str], date_iso: str) -> dict:
@@ -350,43 +380,68 @@ def get_item_names(chat_id: int, inv: str) -> list[str]:
     return sorted({r["item_name"] for r in q.data})
 
 async def handle_delete_callback(cq: dict):
-    chat_id  = cq["message"]["chat"]["id"]
-    msg_id   = cq["message"]["message_id"]
-    payload  = cq["data"]                        # e.g.  del_date|2025-07-05T00:00:00+00:00
-    action, *parts = payload.split("|")
+    chat_id = cq["message"]["chat"]["id"]
+    msg_id  = cq["message"]["message_id"]
+    action, *parts = cq["data"].split("|")
 
     async def edit(text: str, kb: dict | None = None):
         async with httpx.AsyncClient(timeout=10) as c:
-            await c.post(f"{TELEGRAM_API_URL}/editMessageText",
-                         json={
-                             "chat_id":    chat_id,
-                             "message_id": msg_id,
-                             "text":       text,
-                             "parse_mode": "HTML",
-                             **({"reply_markup": kb} if kb else {})
-                         })
-            # Optional – stops Telegram's loading spinner
+            # change-message
+            r1 = await c.post(f"{TELEGRAM_API_URL}/editMessageText",
+                              json={
+                                  "chat_id":    chat_id,
+                                  "message_id": msg_id,
+                                  "text":       text,
+                                  "parse_mode": "HTML",
+                                  **({"reply_markup": kb} if kb else {})
+                              })
+            # stop spinner
             await c.post(f"{TELEGRAM_API_URL}/answerCallbackQuery",
                          json={"callback_query_id": cq["id"]})
+            # DEBUG
+            # print("TG edit:", r1.status_code, r1.text)
 
+    # ─── Entry menu ──────────────────────────────────────────────────
+    if action == "del_menu":
+        await edit("Select an option:", kb_delete_entry())
+        return
+
+    # ─── OPTION 1: RECENT DATES ─────────────────────────────────────
+    if action == "del_recent":
+        dates = get_recent_dates(chat_id, 10)
+        if not dates:
+            await edit("No recent invoices found.")
+            return
+        await edit("Select a date:", kb_for_dates(dates))
+        return
+
+    # ─── OPTION 2: SEARCH BY INVOICE NUMBER ─────────────────────────
+    if action == "del_search":
+        PENDING_SEARCH.add(chat_id)            # mark chat as waiting
+        await edit("Please send the *exact* invoice number "
+                   "(or /cancel to abort).")
+        return
+
+    # ─── Existing flow (date → invoice → item) ──────────────────────
     if action == "del_date":
-        date_iso = parts[0]                      # keep the full ISO stamp
-        date_short = date_iso[:10]         # 2025-07-05
+        date_iso   = parts[0]
+        date_short = date_iso[:10]
         invs = get_invoice_numbers(chat_id, date_iso)
         if not invs:
             await edit("No invoices found for that date.")
             return
-        await edit(f"Date: {date_short}\nSelect invoice number:",kb_for_invoices(invs, date_short))
+        await edit(f"Date: {date_short}\nSelect invoice number:",
+                   kb_for_invoices(invs, date_short))
         return
 
     if action == "del_inv":
-        date_short, inv = parts            # we receive the short date now
+        date_short, inv = parts
         items = get_item_names(chat_id, inv)
         if not items:
             await edit("No items under that invoice.")
             return
         await edit(f"Invoice {inv}\nSelect item to delete:",
-               kb_for_items(items, inv))
+                   kb_for_items(items, inv))
         return
 
     if action == "del_item":
@@ -402,6 +457,55 @@ async def handle_delete_callback(cq: dict):
         return
 
 
+# ---------------------------------------------------------------------------
+# PLAIN-TEXT MESSAGE HANDLER  – catches invoice number typed by user
+# ---------------------------------------------------------------------------
+async def handle_text_message(msg: dict):
+    """
+    Called for every non-command text message.
+    If the user was prompted to search an invoice, treat the message content
+    as the invoice number and jump to the 'select item' step.
+    """
+    chat_id = msg["chat"]["id"]
+    text    = msg["text"].strip()
+
+    # If not waiting for an invoice number → ignore / continue normal flow
+    if chat_id not in PENDING_SEARCH:
+        return
+
+    # Cancel?
+    if text.lower() in {"/cancel", "cancel"}:
+        PENDING_SEARCH.discard(chat_id)
+        await send_message(chat_id, "❌ Search cancelled.")
+        await send_tx_template_button(chat_id)
+        return
+
+    # Search
+    items = get_item_names(chat_id, text)
+    if not items:
+        await send_message(chat_id,
+                           f"Invoice <b>{text}</b> not found. "
+                           "Please try again or /cancel.")
+        return
+
+    # Found – show item keyboard
+    PENDING_SEARCH.discard(chat_id)
+    await send_message(chat_id,
+                       f"Invoice {text}\nSelect item to delete:",
+                       kb_for_items(items, text))
+
+# ---------------------------------------------------------------------------
+# SEND MESSAGE helper (simplified)
+# ---------------------------------------------------------------------------
+async def send_message(chat_id: int, text: str, kb: dict | None = None):
+    async with httpx.AsyncClient(timeout=10) as c:
+        await c.post(f"{TELEGRAM_API_URL}/sendMessage",
+                     json={
+                         "chat_id": chat_id,
+                         "text": text,
+                         "parse_mode": "HTML",
+                         **({"reply_markup": kb} if kb else {})
+                     })    
 async def send_tx_template_button(chat_id: int):
     """
     Sends a one-tap inline button that injects a transaction template
@@ -639,11 +743,16 @@ async def telegram_webhook(request: Request):
     try:
         update = await request.json()
 
-         # ─── Callback queries (inline-keyboard clicks) ───
+        # 1. CallbackQuery  → delete-wizard branch
         if "callback_query" in update:
-            await handle_delete_callback(update["callback_query"])
-            return "OK"          # stop here; no 'message' field in this update
-        
+            asyncio.create_task(handle_delete_callback(update["callback_query"]))
+            return Response(status_code=200)
+
+        # 2. Plain text     → check if we’re waiting for invoice #
+        if "message" in update and "text" in update["message"]:
+            asyncio.create_task(handle_text_message(update["message"]))
+            return Response(status_code=200)
+
         if 'message' not in update:
             return 'OK'
 
