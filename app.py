@@ -267,8 +267,6 @@ Remember: Your reports should help the user make better business decisions - foc
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
 
-PENDING_SEARCH: set[int] = set()          # chat_ids waiting for an invoice #
-
 def kb_delete_entry() -> dict:
     """Root menu: Pick Recent or Search."""
     return {
@@ -457,30 +455,21 @@ async def handle_delete_callback(cq: dict):
         return
 
 
-# ---------------------------------------------------------------------------
-# PLAIN-TEXT MESSAGE HANDLER  – catches invoice number typed by user
-# ---------------------------------------------------------------------------
-async def handle_text_message(msg: dict):
-    """
-    Called for every non-command text message.
-    If the user was prompted to search an invoice, treat the message content
-    as the invoice number and jump to the 'select item' step.
-    """
+# --------------------------------------------------------------
+# INVOICE-NUMBER TEXT HANDLER  (starts with “INV”)
+# --------------------------------------------------------------
+async def handle_invoice_number(msg: dict):
+    """Runs whenever a user sends a text that starts with INV."""
     chat_id = msg["chat"]["id"]
     text    = msg["text"].strip()
 
-    # If not waiting for an invoice number → ignore / continue normal flow
-    if chat_id not in PENDING_SEARCH:
-        return
-
-    # Cancel?
+    # Cancellation shortcut -----------------------------------------
     if text.lower() in {"/cancel", "cancel"}:
-        PENDING_SEARCH.discard(chat_id)
         await send_message(chat_id, "❌ Search cancelled.")
         await send_tx_template_button(chat_id)
         return
 
-    # Search
+    # Retrieve items -------------------------------------------------
     items = get_item_names(chat_id, text)
     if not items:
         await send_message(chat_id,
@@ -488,12 +477,10 @@ async def handle_text_message(msg: dict):
                            "Please try again or /cancel.")
         return
 
-    # Found – show item keyboard
-    PENDING_SEARCH.discard(chat_id)
+    # Success: show items keyboard ----------------------------------
     await send_message(chat_id,
                        f"Invoice {text}\nSelect item to delete:",
                        kb_for_items(items, text))
-
 # ---------------------------------------------------------------------------
 # SEND MESSAGE helper (simplified)
 # ---------------------------------------------------------------------------
@@ -749,18 +736,18 @@ async def telegram_webhook(request: Request):
             return "OK"
         
         print(f"Pending Search is {PENDING_SEARCH}")
-        # 2. Searching for Invoice #
-        msg = update.get("message")              # None for non-message updates
-        if msg and "text" in msg:
-            chat_id = msg["chat"]["id"]
 
-            if chat_id in PENDING_SEARCH:        # we’re expecting an invoice #
-                await handle_text_message(msg)   # run it, don’t background it
-                return "OK"                      # stop here; do *not* fall through
-        
-        # 3. No Messages
-        if 'message' not in update:
-            return 'OK'
+        # 2. Searching for Invoice #
+        msg = update.get("message")
+        if msg and "text" in msg:
+            text = msg["text"]
+            if text.lstrip().upper().startswith("INV"):   # ← new detector
+                await handle_invoice_number(msg)
+                return "OK"
+                
+            # 3. No Messages
+            if 'message' not in update:
+                return 'OK'
 
         chat_id = update["message"]["chat"]["id"] 
         message = update['message']
