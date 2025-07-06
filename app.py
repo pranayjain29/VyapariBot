@@ -746,12 +746,12 @@ async def telegram_webhook(request: Request):
         # 1. CallbackQuery  → delete-wizard branch
         if "callback_query" in update:
             asyncio.create_task(handle_delete_callback(update["callback_query"]))
-            return Response(status_code=200)
+            return "OK"
 
         # 2. Plain text     → check if we’re waiting for invoice #
         if "message" in update and "text" in update["message"]:
             asyncio.create_task(handle_text_message(update["message"]))
-            return Response(status_code=200)
+            return "OK"
 
         if 'message' not in update:
             return 'OK'
