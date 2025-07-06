@@ -747,18 +747,23 @@ async def telegram_webhook(request: Request):
         if "callback_query" in update:
             await handle_delete_callback(update["callback_query"])
             return "OK"
+        
+        print(f"Pending Search is {PENDING_SEARCH}")
+        # 2. Searching for Invoice #
+        msg = update.get("message")              # None for non-message updates
+        if msg and "text" in msg:
+            chat_id = msg["chat"]["id"]
 
-        # 2. No Messages
+            if chat_id in PENDING_SEARCH:        # we’re expecting an invoice #
+                await handle_text_message(msg)   # run it, don’t background it
+                return "OK"                      # stop here; do *not* fall through
+        
+        # 3. No Messages
         if 'message' not in update:
             return 'OK'
 
         chat_id = update["message"]["chat"]["id"] 
         message = update['message']
-
-        # 3. Plain text     → check if we’re waiting for invoice #
-        if "message" in update and "text" in message and chat_id in PENDING_SEARCH:
-            await handle_text_message(message) 
-            return "OK"
 
         # Telegram send
         async def send(msg: str):
