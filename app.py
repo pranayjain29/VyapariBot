@@ -747,7 +747,8 @@ async def telegram_webhook(request: Request):
         if "callback_query" in update:
             asyncio.create_task(handle_delete_callback(update["callback_query"]))
             return "OK"
-
+        
+        print(f"Update is {update}")
         # 2. Plain text     → check if we’re waiting for invoice #
         if "message" in update and "text" in update["message"]:
             asyncio.create_task(handle_text_message(update["message"]))
