@@ -734,7 +734,6 @@ async def telegram_webhook(request: Request):
             await handle_delete_callback(update["callback_query"])
             return "OK"
         
-        print(f"Pending Search is {PENDING_SEARCH}")
 
         # 2. Searching for Invoice #
         msg = update.get("message")
