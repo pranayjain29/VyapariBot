@@ -269,6 +269,11 @@ Remember: Your reports should help the user make better business decisions - foc
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
 
+def run_blocking(func, *args, **kwargs):
+    """Return an awaitable that executes *func* in the thread-pool."""
+    loop = asyncio.get_running_loop()
+    return loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
+
 
 @app.post("/webhook", dependencies=[Depends(rate_limiter(max_calls=20, time_window=60))])
 async def telegram_webhook(request: Request):

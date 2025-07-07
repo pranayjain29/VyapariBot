@@ -472,7 +472,3 @@ def download_transactions_csv(chat_id: int) -> str:
         print(f"[download_transactions_csv] {e}")
         return "❌ Error in making CSV. Sorry brother."
 
-def run_blocking(func, *args, **kwargs):
-    """Return an awaitable that executes *func* in the thread-pool."""
-    loop = asyncio.get_running_loop()
-    return loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
