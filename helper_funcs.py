@@ -20,6 +20,10 @@ from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 from datetime import datetime, timedelta, timezone, date
 
 from collections import defaultdict
+from supabase import create_client, Client
+import csv, tempfile, os
+from app import *
+
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
