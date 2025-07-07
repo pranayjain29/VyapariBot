@@ -20,7 +20,6 @@ supabase: Client = create_client(url, key)
 
 print("Supabase client created")
 
-
 MAX_HISTORY = 5          # keep only the last 5 messages
 
 # ────────────────────────────────────────────────────────────────────────────────

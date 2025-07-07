@@ -21,6 +21,18 @@ from datetime import datetime, timedelta, timezone, date
 
 from collections import defaultdict
 
+# Configuration
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+GEMINI_API_KEY1 = os.getenv('GEMINI_API_KEY1')
+GEMINI_API_KEY2 = os.getenv('GEMINI_API_KEY2')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+
+# Initialize Supabase client
+url: str = os.environ.get("SUPABASE_URL_KEY")
+key: str = os.environ.get("SUPABASE_API_KEY")
+supabase: Client = create_client(url, key)
+
 def kb_delete_entry() -> dict:
     """Root menu: Pick Recent or Search."""
     return {
