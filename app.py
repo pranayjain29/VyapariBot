@@ -106,7 +106,7 @@ etc) → Use Invoice_Generator_And_Transaction_Recorder as a tool ONCE.
 
 DECISION FRAMEWORK:
 Before responding, ask yourself:
-1. "Does this involve recording/generating invoices?" → Invoice_Agent
+1. "Does this involve recording/generating invoices?" → use this tool: Invoice_Generator_And_Transaction_Recorder
 2. "Does this need transaction data/reports?" → Report_Agent  
 3. "Is this general business chat?" → Handle myself
 
@@ -734,7 +734,6 @@ async def telegram_webhook(request: Request):
             await handle_delete_callback(update["callback_query"])
             return "OK"
         
-
         # 2. Searching for Invoice #
         msg = update.get("message")
         if msg and "text" in msg:
@@ -847,7 +846,7 @@ Hello! I'm here to help you manage your business with simple, everyday language.
 
 📝 What I Can Do For You:
 
-1. Record Sales & Generate Invoices
+<b>1. Record Sales & Generate Invoices</b>
 Just tell me about your sale in plain language, and I'll handle the rest!
 
 Required: Product name, quantity, and price per unit
@@ -858,7 +857,9 @@ Example texts:
 - "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card. Discount of 10%."
 - "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
 
-2. Download Data & Business Insights
+<i>Note: To delete any transaction, use /delete.</i>
+
+<b>2. Download Data & Business Insights</b>
 Get your complete sales data or ask for reports and analysis.
 
 Example texts:
@@ -867,7 +868,7 @@ Example texts:
 - "Which product sells the most?"
 - "Give me weekly sales report"
 
-3. General Business Advice & Support
+<b>3. General Business Advice & Support</b>
 I'm here for friendly conversations and business guidance too!
 
 Example texts:
@@ -875,7 +876,7 @@ Example texts:
 - "What's the best way to handle customer complaints?"
 - "Help me plan my inventory"
 
-⚙️ Quick Settings:
+<b>⚙️ Quick Settings:</b>
 
 Change Language: Type `/language` followed by your preferred language
 Example: /language Hindi
@@ -883,9 +884,10 @@ Example: /language Hindi
 Set Company Details: Type `/company` followed by your business information
 Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
 
+Delete Transactions: Type '/delete' and follow the steps to delete any transaction you want.
 ---
 
-🔒 YOUR DATA IS SAFE WITH US
+<b>🔒 YOUR DATA IS SAFE WITH US</b>
 
 Ready to get started? Just tell me about your first sale or ask me anything!
             """
