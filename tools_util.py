@@ -203,7 +203,13 @@ def update_user_data(chat_id: int, transaction_amount: float):
             user_record = read_user(chat_id) or {}
 
         # 3. Derive new aggregated values
-        new_txn_count = (user_record.get("total_transactions") or 0) + 1
+        new_txn_count = 0
+
+        if transaction_amount > 0:
+            new_txn_count = (user_record.get("total_transactions") or 0) + 1
+        else:
+            new_txn_count = (user_record.get("total_transactions") or 0) -1
+
         new_revenue   = float(user_record.get("total_revenue") or 0) + float(transaction_amount)
 
         # 4. Build update payload
@@ -333,6 +339,34 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
     Deletes exactly one row from vyapari_transactions.
     Returns True if a row was deleted, False otherwise.
     """
+    # 1) Look-up the row first so we know the amount to roll back
+    lookup = (
+        supabase
+        .table("vyapari_transactions")
+        .select("total_price_including_tax")    # keep the query lean
+        .eq("chat_id",        str(chat_id))
+        .eq("invoice_number", invoice_number)
+        .eq("item_name",      item_name)
+        .limit(1)
+        .execute()
+    )
+
+    if not lookup.data:
+        # Nothing to delete
+        print("delete_transaction: no matching row found")
+        return False
+
+    total_price_including_tax = lookup.data[0]["total_price_including_tax"]
+
+    # 2) Update user-level aggregates BEFORE deletion
+    #    (negative amount to subtract from totals)
+    try:
+        update_user_data(chat_id, transaction_amount=-total_price_including_tax)
+    except Exception as exc:
+        # Fail fast – do not delete if we couldn't adjust user stats
+        print(f"delete_transaction: user update failed → {exc}")
+        return False
+        
     resp = (
         supabase
         .table("vyapari_transactions")
