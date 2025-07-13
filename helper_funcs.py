@@ -298,20 +298,54 @@ async def send_message(chat_id: int, text: str, kb: dict | None = None):
         return None
 
 async def send_tx_template_button(chat_id: int):
-    """Send transaction template button."""
-    try:
-        keyboard = {
-            "keyboard": [
-                [{"text": "📝 Record a Sale"}],
-                [{"text": "📊 Download Data"}],
-                [{"text": "📈 Get Reports"}]
-            ],
-            "resize_keyboard": True,
-            "one_time_keyboard": False
-        }
-        await send_message(chat_id, "What would you like to do?", keyboard)
-    except Exception as e:
-        logger.error(f"Error sending template button: {e}")
+    """
+    Sends inline buttons that inject templates into the user's input box
+    (they can edit before sending).
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Template for recording a sale
+    sale_template = (
+        "Record Transaction:\n"
+        "Item(s): <item name>\n"
+        "Quantity(s): 1\n"
+        "Price(s) per unit: 0\n"
+        "Discount(s) per unit: 0\n"
+        "GST: 0\n"
+        f"Date: {today}\n"
+        "Customer Name and Details:\n"
+        "Payment method: cash\n"
+        "(You can edit any value before sending.)"
+    )
+
+    # Template for downloading data
+    download_template = "Download all my sales data"
+
+    # Template for getting reports
+    report_template = "Show me this month's revenue"
+
+    keyboard = {
+        "inline_keyboard": [
+            [{
+                "text": "📝 Record a Sale",
+                "switch_inline_query_current_chat": sale_template
+            }],
+            [{
+                "text": "📊 Download Data",
+                "switch_inline_query_current_chat": download_template
+            }],
+            [{
+                "text": "📈 Get Reports",
+                "switch_inline_query_current_chat": report_template
+            }]
+        ]
+    }
+
+    await send_telegram_message(
+        chat_id,
+        "Tap any button to insert a template you can edit:",
+        reply_markup=keyboard
+    )
 
 async def send_telegram_message(chat_id, text, reply_markup=None):
     """Send message to Telegram with error handling."""
