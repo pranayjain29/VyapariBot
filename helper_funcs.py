@@ -305,16 +305,16 @@ async def send_tx_template_button(chat_id: int):
 
     # Template for recording a sale
     sale_template = (
-        "Record Transaction:\n"
-        "Item(s): <item name>\n"
-        "Quantity(s): 1\n"
-        "Price(s) per unit: 0\n"
-        "Discount(s) per unit: 0\n"
-        "GST: 0\n"
-        f"Date: {today}\n"
-        "Customer Name and Details:\n"
-        "Payment method: cash\n"
-        "(You can edit any value before sending.)"
+    "Record Transaction:\n"
+    "Item(s): (item name)\n"             # ← use parentheses instead
+    "Quantity(s): 1\n"
+    "Price(s) per unit: 0\n"
+    "Discount(s) per unit: 0\n"
+    "GST: 0\n"
+    f"Date: {today}\n"
+    "Customer Name and Details:\n"
+    "Payment method: cash\n"
+    "(You can edit any value before sending.)"
     )
 
     # Template for downloading data
@@ -327,11 +327,11 @@ async def send_tx_template_button(chat_id: int):
         "inline_keyboard": [
             [{
                 "text": "📝 Record a Sale",
-                "callback_data": f"template_sale:{sale_template}"
+                "switch_inline_query_current_chat": sale_template
             }],
             [{
                 "text": "📊 Download Data",
-                "callback_data": f"template_download:{download_template}"
+                "switch_inline_query_current_chat": download_template
             }],
             [{
                 "text": "📈 Get Reports",

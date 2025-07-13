@@ -555,18 +555,9 @@ async def telegram_webhook(request: Request):
     try:
         update = await request.json()
 
-        # 1. CallbackQuery  → handle all callback queries
+        # 1. CallbackQuery  → delete-wizard branch
         if "callback_query" in update:
-            callback_query = update["callback_query"]
-            data = callback_query.get("data", "")
-            
-            # Handle template button callbacks
-            if data.startswith("template_"):
-                await handle_template_callback(callback_query)
-                return "OK"
-            
-            # Handle delete-wizard callbacks
-            await handle_delete_callback(callback_query)
+            await handle_delete_callback(update["callback_query"])
             return "OK"
         
         # 2. Check if message exists
