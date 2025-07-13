@@ -11,11 +11,12 @@ import csv, tempfile, os
 from agents import Agent, Runner, trace, function_tool
 from typing import List, Dict, Any, Union
 from decimal import Decimal, ROUND_HALF_UP
-from app import *
 
 # Initialize Supabase client
-url: str = os.environ.get("SUPABASE_URL_KEY")
-key: str = os.environ.get("SUPABASE_API_KEY")
+url: str = os.environ.get("SUPABASE_URL_KEY", "")
+key: str = os.environ.get("SUPABASE_API_KEY", "")
+if not url or not key:
+    raise ValueError("SUPABASE_URL_KEY and SUPABASE_API_KEY must be set")
 supabase: Client = create_client(url, key)
 
 print("Supabase client created")
@@ -377,7 +378,7 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
         .execute()
     )
 
-    deleted_rows = resp.data if hasattr(resp, "data") else resp.get("data", [])
+    deleted_rows = resp.data if hasattr(resp, "data") else []
     print(f"Supabase delete response → rows deleted: {len(deleted_rows)}")
     return len(deleted_rows) > 0
 
@@ -397,7 +398,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
             "discount_given": discount_per_unit*quantity,
             "tax_amount": quantity*(price_per_unit-discount_per_unit)*tax_rate/(100+tax_rate),
             "tax_rate": tax_rate,
-            "raw_message": raw_message,
+            "raw_message": raw_message or "",
             "payment_method": payment_method,
             "currency": currency,
             "inserted_at": datetime.now(timezone.utc).isoformat(),

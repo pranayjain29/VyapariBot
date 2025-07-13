@@ -1,1 +1,1 @@
-web: gunicorn -k uvicorn.workers.UvicornWorker -w 4 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --preload app:app
+web: gunicorn -k uvicorn.workers.UvicornWorker -w 4 --timeout 120 app:app 

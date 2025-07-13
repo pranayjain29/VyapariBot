@@ -14,9 +14,20 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from datetime import datetime, timedelta, timezone, date
 from collections import defaultdict
-import redis.asyncio as redis
 
-from tools_util import *
+# Try to import redis, but handle the case where it's not available
+try:
+    import redis.asyncio as redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None
+
+from tools_util import (
+    read_transactions, download_Transactions_CSV, generate_invoice, 
+    write_transaction, read_user, get_last_messages, log_message,
+    update_user_field, read_value_by_chat_id, write_user, update_last_used_date
+)
 from helper_funcs import *
 
 import re
@@ -37,7 +48,7 @@ logger = logging.getLogger(__name__)
 class AppState:
     def __init__(self):
         self.executor: Optional[ThreadPoolExecutor] = None
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: Optional[Any] = None  # Using Any to avoid type issues with redis
         self.gemini_client1: Optional[AsyncOpenAI] = None
         self.gemini_client2: Optional[AsyncOpenAI] = None
         self.model1: Optional[OpenAIChatCompletionsModel] = None
@@ -66,12 +77,16 @@ async def lifespan(app: FastAPI):
     app_state.executor = ThreadPoolExecutor(max_workers=20)
     
     # Initialize Redis for rate limiting and caching
-    try:
-        app_state.redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-        await app_state.redis_client.ping()
-        logger.info("Redis connection established")
-    except Exception as e:
-        logger.warning(f"Redis connection failed: {e}. Using in-memory rate limiting.")
+    if REDIS_AVAILABLE and redis is not None:
+        try:
+            app_state.redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+            await app_state.redis_client.ping()
+            logger.info("Redis connection established")
+        except Exception as e:
+            logger.warning(f"Redis connection failed: {e}. Using in-memory rate limiting.")
+            app_state.redis_client = None
+    else:
+        logger.warning("Redis not available. Using in-memory rate limiting.")
         app_state.redis_client = None
     
     # Initialize Gemini clients
@@ -106,7 +121,7 @@ app.add_middleware(
 )
 
 # ───────────────────── Optimized Rate Limiter ─────────────────────
-async def rate_limiter(max_calls: int = 20, time_window: int = 60):
+def rate_limiter(max_calls: int = 20, time_window: int = 60):
     """
     Optimized rate limiter using Redis when available, fallback to in-memory.
     """
