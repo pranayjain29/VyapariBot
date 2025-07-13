@@ -1,5 +1,6 @@
 gunicorn
 uvicorn
+uvicorn-worker
 fastapi
 python-dotenv
 openai
