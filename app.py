@@ -1,27 +1,27 @@
 import csv, tempfile, os, time, asyncio, logging, json, httpx
-
-from fastapi import FastAPI, Request, status, HTTPException, Depends
-from fastapi.responses import JSONResponse
-from flask import Flask, request, jsonify
-
-import requests
-from dotenv import load_dotenv
-from openai import  AsyncOpenAI
-from typing import List, Dict, Union, Any
+from contextlib import asynccontextmanager
+from typing import List, Dict, Union, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 import functools
+
+from fastapi import FastAPI, Request, status, HTTPException, Depends
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+import requests
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+from datetime import datetime, timedelta, timezone, date
+from collections import defaultdict
+import redis.asyncio as redis
 
 from tools_util import *
 from helper_funcs import *
 
 import re
-from datetime import datetime
 from agents import Agent, Runner, trace, function_tool
 from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-from datetime import datetime, timedelta, timezone, date
-
-from collections import defaultdict
 
 # Load environment variables
 load_dotenv()
@@ -33,33 +33,83 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Vyapari Bot - FastAPI")
+# Global state management
+class AppState:
+    def __init__(self):
+        self.executor: Optional[ThreadPoolExecutor] = None
+        self.redis_client: Optional[redis.Redis] = None
+        self.gemini_client1: Optional[AsyncOpenAI] = None
+        self.gemini_client2: Optional[AsyncOpenAI] = None
+        self.model1: Optional[OpenAIChatCompletionsModel] = None
+        self.model2: Optional[OpenAIChatCompletionsModel] = None
+        self.rate_limit_cache: Dict[int, List[float]] = defaultdict(list)
+
+app_state = AppState()
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 GEMINI_API_KEY1 = os.getenv('GEMINI_API_KEY1')
 GEMINI_API_KEY2 = os.getenv('GEMINI_API_KEY2')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Configure Gemini
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-gemini_client1 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY1)
-model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client1)
 
-gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2)
-model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=gemini_client2)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting up Vyapari Bot...")
+    
+    # Initialize ThreadPoolExecutor
+    app_state.executor = ThreadPoolExecutor(max_workers=20)
+    
+    # Initialize Redis for rate limiting and caching
+    try:
+        app_state.redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        await app_state.redis_client.ping()
+        logger.info("Redis connection established")
+    except Exception as e:
+        logger.warning(f"Redis connection failed: {e}. Using in-memory rate limiting.")
+        app_state.redis_client = None
+    
+    # Initialize Gemini clients
+    app_state.gemini_client1 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY1)
+    app_state.gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2)
+    app_state.model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client1)
+    app_state.model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client2)
+    
+    logger.info("All services initialized successfully")
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down Vyapari Bot...")
+    if app_state.executor:
+        app_state.executor.shutdown(wait=False)
+    if app_state.redis_client:
+        await app_state.redis_client.close()
+    logger.info("Shutdown complete")
 
-executor: ThreadPoolExecutor | None = None
+app = FastAPI(
+    title="Vyapari Bot - FastAPI",
+    lifespan=lifespan
+)
 
-# ───────────────────── rate-limit dependency ─────────────────────
-def rate_limiter(max_calls: int = 5, time_window: int = 60):
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ───────────────────── Optimized Rate Limiter ─────────────────────
+async def rate_limiter(max_calls: int = 20, time_window: int = 60):
     """
-    FastAPI dependency version of the per-chat_id rate-limit.
-    Stores timestamps in a closure-level dict.
+    Optimized rate limiter using Redis when available, fallback to in-memory.
     """
-    call_times: Dict[int, List[float]] = {}
-
     async def _dependency(request: Request):
         body: Dict[str, Any] = await request.json()
         chat_id = (
@@ -73,16 +123,44 @@ def rate_limiter(max_calls: int = 5, time_window: int = 60):
             return  # Let it pass (non-telegram test ping etc.)
 
         now = time.time()
-        call_times.setdefault(chat_id, [])
-        call_times[chat_id] = [t for t in call_times[chat_id] if now - t < time_window]
-
-        if len(call_times[chat_id]) >= max_calls:
-            logger.warning("Rate limit exceeded for %s", chat_id)
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded",
-            )
-        call_times[chat_id].append(now)
+        
+        if app_state.redis_client:
+            # Use Redis for distributed rate limiting
+            key = f"rate_limit:{chat_id}"
+            try:
+                # Add current timestamp to sorted set
+                await app_state.redis_client.zadd(key, {str(now): now})
+                # Remove old entries
+                await app_state.redis_client.zremrangebyscore(key, 0, now - time_window)
+                # Count current entries
+                count = await app_state.redis_client.zcard(key)
+                # Set expiry
+                await app_state.redis_client.expire(key, time_window)
+                
+                if count > max_calls:
+                    logger.warning("Rate limit exceeded for %s", chat_id)
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail="Rate limit exceeded",
+                    )
+            except Exception as e:
+                logger.error(f"Redis rate limiting failed: {e}")
+                # Fallback to in-memory
+                pass
+        else:
+            # In-memory fallback
+            app_state.rate_limit_cache[chat_id] = [
+                t for t in app_state.rate_limit_cache[chat_id] 
+                if now - t < time_window
+            ]
+            
+            if len(app_state.rate_limit_cache[chat_id]) >= max_calls:
+                logger.warning("Rate limit exceeded for %s", chat_id)
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Rate limit exceeded",
+                )
+            app_state.rate_limit_cache[chat_id].append(now)
 
     return _dependency
 
@@ -98,7 +176,7 @@ PERSONALITY & COMMUNICATION:
 TASK ROUTING (with COMPLETE language/context passed):
 
 1. INVOICE/SALES REQUESTS ("Sold", "Transactions", "Invoice", "Recording transaction/sales",
-etc) → Use Invoice_Generator_And_Transaction_Recorder as a tool ONCE.
+etc) → Use Invoice_Generator_And_Transaction_Recorder as a tool ONLY ONCE and stop when you recieve success message.
 "
 2. Report/Analytics ("Data Download", "Report", "Sales data", "Insights",
 "Summaries/Performance Queries") → Hand off to Report_Agent 
@@ -271,8 +349,43 @@ CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 
 def run_blocking(func, *args, **kwargs):
     """Return an awaitable that executes *func* in the thread-pool."""
+    if not app_state.executor:
+        raise RuntimeError("ThreadPoolExecutor not initialized")
     loop = asyncio.get_running_loop()
-    return loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
+    return loop.run_in_executor(app_state.executor, functools.partial(func, *args, **kwargs))
+
+# Agent factory for better resource management
+class AgentFactory:
+    @staticmethod
+    def create_invoice_agent(context: str) -> Agent:
+        return Agent(
+            name="Invoice Generator", 
+            instructions=INVOICE_PROMPT + context, 
+            model=app_state.model1,
+            tools=[handle_invoice_request]
+        )
+    
+    @staticmethod
+    def create_report_agent(context: str) -> Agent:
+        return Agent(
+            name="Report Generator", 
+            instructions=REPORT_PROMPT + context, 
+            model=app_state.model2,
+            tools=[read_transactions, download_transactions_csv]
+        )
+    
+    @staticmethod
+    def create_vyapari_agent(context: str, invoice_agent: Agent) -> Agent:
+        return Agent(
+            name="Vyapari", 
+            instructions=VYAPARI_PROMPT + context, 
+            model=app_state.model1,
+            tools=[invoice_agent.as_tool(
+                tool_name="Invoice_Generator_And_Transaction_Recorder",
+                tool_description="Generates Invoice and Records the Transaction",
+            )],
+            handoffs=[AgentFactory.create_report_agent(context)]
+        )
 
 @function_tool
 def handle_invoice_request(
@@ -648,51 +761,23 @@ Ready to get started? Just tell me about your first sale or ask me anything!
             f"[{m['message_date']}] {m['message_text']}" for m in last_msgs
         )
 
-        global VYAPARI_PROMPT, INVOICE_PROMPT, REPORT_PROMPT
-        Vyapari_PROMPT = VYAPARI_PROMPT
-        Invoice_PROMPT = INVOICE_PROMPT
-        Report_PROMPT = REPORT_PROMPT
-
         # Prepare context
         current_date = datetime.now().strftime('%Y-%m-%d')
         master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}\n User's Preferred Language: {user_language}"
         child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User's Preferred Language: {user_language}"
+
         text += f" \n[Context: {child_context}. Speak in user's preferred language only]"
 
-        Vyapari_PROMPT += master_context
-        Invoice_PROMPT += child_context
-        Report_PROMPT  += child_context
-
-        Invoice_PROMPT += f"\nCompany Details are: {company_details}"
-
-        Invoice_Agent = Agent(
-                name="Invoice Generator", 
-                instructions=Invoice_PROMPT, 
-                model=model1,
-                tools=[handle_invoice_request])
-                
-        Report_Agent = Agent(
-                name="Report Generator", 
-                instructions=Report_PROMPT, 
-                model=model2,
-                tools=[read_transactions, download_transactions_csv])
-
-        Vyapari_Agent = Agent(
-                name="Vyapari", 
-                instructions=Vyapari_PROMPT, 
-                model=model1,
-                tools = [Invoice_Agent.as_tool(
-                tool_name="Invoice_Generator_And_Transaction_Recorder",
-                tool_description="Generates Invoice and Records the Transaction",
-                )],
-                handoffs=[Report_Agent])
+        # Create agents using factory pattern
+        invoice_agent = AgentFactory.create_invoice_agent(child_context + f"\nCompany Details are: {company_details}")
+        vyapari_agent = AgentFactory.create_vyapari_agent(master_context, invoice_agent)
 
         print("Created All Agents")
         with trace("Vyapari Agent"):
             response = await run_with_progress(          # <<< NEW
                 chat_id,
                 asyncio.wait_for(
-                    Runner.run(Vyapari_Agent, text),
+                    Runner.run(vyapari_agent, text),
                     timeout=180,
                 ),
                 ack_msg="🤔 Let me figure that out…",    # appears instantly
@@ -731,23 +816,7 @@ def send_document(chat_id, file_path):
     print(f"Invoice Sent {response.json()}")
     return response.json()
 
-@app.route('/health', methods=['GET'])
-def health_check():
+@app.get('/health')
+async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
-
-@app.on_event("startup")
-async def _startup_checks():
-    global executor
-    if not TELEGRAM_TOKEN or not GEMINI_API_KEY1:
-        logger.error("Missing required environment variables. Exiting…")
-        raise RuntimeError("Incomplete ENV")
-
-    executor = ThreadPoolExecutor(max_workers=20)
-    logger.info("ThreadPoolExecutor started with %d workers", 20)
-
-@app.on_event("shutdown")
-async def _shutdown_pool():
-    if executor:
-        executor.shutdown(wait=False)
-        logger.info("ThreadPoolExecutor shut down")
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
