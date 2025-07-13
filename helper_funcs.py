@@ -299,8 +299,7 @@ async def send_message(chat_id: int, text: str, kb: dict | None = None):
 
 async def send_tx_template_button(chat_id: int):
     """
-    Sends inline buttons that inject templates into the user's input box
-    (they can edit before sending).
+    Sends inline buttons that send template text directly to the chat.
     """
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -328,11 +327,11 @@ async def send_tx_template_button(chat_id: int):
         "inline_keyboard": [
             [{
                 "text": "📝 Record a Sale",
-                "switch_inline_query_current_chat": sale_template
+                "callback_data": f"template_sale:{sale_template}"
             }],
             [{
                 "text": "📊 Download Data",
-                "switch_inline_query_current_chat": download_template
+                "callback_data": f"template_download:{download_template}"
             }],
             [{
                 "text": "📈 Get Reports",
@@ -396,5 +395,41 @@ async def remove_keyboard(chat_id: int, text: str = "✅ Thanks! You're all set.
         await send_telegram_message(chat_id, text, keyboard)
     except Exception as e:
         logger.error(f"Error removing keyboard: {e}")
+
+async def handle_template_callback(cq: dict):
+    """Handle template button callbacks."""
+    chat_id = cq["message"]["chat"]["id"]
+    data = cq.get("data", "")
+    
+    try:
+        # Extract template type and content
+        if data.startswith("template_sale:"):
+            template_content = data.replace("template_sale:", "")
+            await send_telegram_message(chat_id, template_content)
+        elif data.startswith("template_download:"):
+            template_content = data.replace("template_download:", "")
+            await send_telegram_message(chat_id, template_content)
+        elif data.startswith("template_report:"):
+            template_content = data.replace("template_report:", "")
+            await send_telegram_message(chat_id, template_content)
+        
+        # Answer the callback query to remove the loading state
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                f"{TELEGRAM_API_URL}/answerCallbackQuery",
+                json={"callback_query_id": cq["id"]}
+            )
+            
+    except Exception as e:
+        logger.error(f"Error handling template callback: {e}")
+        # Try to answer callback query even if there's an error
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(
+                    f"{TELEGRAM_API_URL}/answerCallbackQuery",
+                    json={"callback_query_id": cq["id"], "text": "Error occurred"}
+                )
+        except:
+            pass
 
 

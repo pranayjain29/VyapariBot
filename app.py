@@ -73,8 +73,8 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up Vyapari Bot...")
     
-    # Initialize ThreadPoolExecutor
-    app_state.executor = ThreadPoolExecutor(max_workers=20)
+    # Initialize ThreadPoolExecutor with reduced workers for memory efficiency
+    app_state.executor = ThreadPoolExecutor(max_workers=10)
     
     # Initialize Redis for rate limiting and caching
     if REDIS_AVAILABLE and redis is not None:
@@ -89,11 +89,16 @@ async def lifespan(app: FastAPI):
         logger.warning("Redis not available. Using in-memory rate limiting.")
         app_state.redis_client = None
     
-    # Initialize Gemini clients
-    app_state.gemini_client1 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY1)
-    app_state.gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2)
-    app_state.model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client1)
-    app_state.model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client2)
+    # Initialize Gemini clients with timeout
+    try:
+        app_state.gemini_client1 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY1, timeout=60.0)
+        app_state.gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2, timeout=60.0)
+        app_state.model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client1)
+        app_state.model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client2)
+        logger.info("AI models initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize AI models: {e}")
+        raise
     
     logger.info("All services initialized successfully")
     yield
@@ -550,25 +555,33 @@ async def telegram_webhook(request: Request):
     try:
         update = await request.json()
 
-        # 1. CallbackQuery  → delete-wizard branch
+        # 1. CallbackQuery  → handle all callback queries
         if "callback_query" in update:
-            await handle_delete_callback(update["callback_query"])
+            callback_query = update["callback_query"]
+            data = callback_query.get("data", "")
+            
+            # Handle template button callbacks
+            if data.startswith("template_"):
+                await handle_template_callback(callback_query)
+                return "OK"
+            
+            # Handle delete-wizard callbacks
+            await handle_delete_callback(callback_query)
             return "OK"
         
-        # 2. Searching for Invoice #
-        msg = update.get("message")
-        if msg and "text" in msg:
-            text = msg["text"]
-            if text.lstrip().upper().startswith("INV"):   # ← new detector
-                await handle_invoice_number(msg)
-                return "OK"
-
-            # 3. No Messages
-            if 'message' not in update:
-                return 'OK'
-
-        chat_id = update["message"]["chat"]["id"] 
+        # 2. Check if message exists
+        if 'message' not in update:
+            return 'OK'
+            
         message = update['message']
+        chat_id = message["chat"]["id"]
+        
+        # 3. Searching for Invoice #
+        if "text" in message:
+            text = message["text"]
+            if text.lstrip().upper().startswith("INV"):   # ← new detector
+                await handle_invoice_number(message)
+                return "OK"
 
         # Telegram send
         async def send(msg: str):
@@ -643,7 +656,12 @@ async def telegram_webhook(request: Request):
             spinner  = asyncio.create_task(typing_spinner(chat_id, stop_evt))
 
             try:
-                result = await coro          # await the real long task
+                # Increase timeout for long-running AI operations
+                result = await asyncio.wait_for(coro, timeout=240)  # 4 minutes timeout
+            except asyncio.TimeoutError:
+                logger.error(f"Operation timed out for chat_id: {chat_id}")
+                await send_telegram_message(chat_id, "⏰ Sorry, the operation took too long. Please try again.")
+                raise
             finally:
                 stop_evt.set()               # stop spinner even on error
                 await spinner
@@ -793,10 +811,7 @@ Ready to get started? Just tell me about your first sale or ask me anything!
         with trace("Vyapari Agent"):
             response = await run_with_progress(          # <<< NEW
                 chat_id,
-                asyncio.wait_for(
-                    Runner.run(vyapari_agent, text),
-                    timeout=180,
-                ),
+                Runner.run(vyapari_agent, text),
                 ack_msg="🤔 Let me figure that out…",    # appears instantly
                 # done_msg can be omitted; final_output arrives right after
             )
