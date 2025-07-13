@@ -301,11 +301,13 @@ async def send_tx_template_button(chat_id: int):
     """Send transaction template button."""
     try:
         keyboard = {
-            "inline_keyboard": [
-                [{"text": "📝 Record a Sale", "callback_data": "record_sale"}],
-                [{"text": "📊 Download Data", "callback_data": "download_data"}],
-                [{"text": "📈 Get Reports", "callback_data": "get_reports"}]
-            ]
+            "keyboard": [
+                [{"text": "📝 Record a Sale"}],
+                [{"text": "📊 Download Data"}],
+                [{"text": "📈 Get Reports"}]
+            ],
+            "resize_keyboard": True,
+            "one_time_keyboard": False
         }
         await send_message(chat_id, "What would you like to do?", keyboard)
     except Exception as e:

@@ -741,6 +741,78 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
             return "OK"
 
+        # Handle template button clicks
+        user_text = message.get('text', '')
+        if user_text == "📝 Record a Sale":
+            template_text = """📝 **Record a Sale Template:**
+
+Please provide your sale details in this format:
+
+**Product Name, Quantity, Price per unit**
+
+Examples:
+- "5 packets of tea for ₹20 each"
+- "2 laptop repairs at ₹150 each"
+- "10 notebooks ₹25 each"
+
+You can also add:
+- Customer name: "to Ram"
+- Payment method: "paid by credit card"
+- Discount: "Discount ₹5" or "10% discount"
+- Date: "on 15th January"
+
+Just type your sale details and I'll generate the invoice!"""
+            await send(template_text)
+            return "OK"
+            
+        elif user_text == "📊 Download Data":
+            template_text = """📊 **Download Data Template:**
+
+I can help you download your transaction data. Just say:
+
+- "Download all my sales data"
+- "Export my transactions"
+- "Get my sales CSV"
+- "Download this month's data"
+
+Or ask for specific reports:
+- "Show me this month's revenue"
+- "Which product sells the most?"
+- "Give me weekly sales report"
+
+What would you like to download?"""
+            await send(template_text)
+            return "OK"
+            
+        elif user_text == "📈 Get Reports":
+            template_text = """📈 **Get Reports Template:**
+
+I can generate various business reports for you. Try:
+
+**Revenue Reports:**
+- "Show me this month's revenue"
+- "Compare this year vs last year"
+- "Daily sales for this week"
+
+**Product Analysis:**
+- "Which product sells the most?"
+- "Show me rice sales this month"
+- "Top 5 products by revenue"
+
+**Customer Insights:**
+- "Who are my repeat customers?"
+- "Customer payment preferences"
+- "Best customers this month"
+
+**Business Intelligence:**
+- "Growth trends this quarter"
+- "Seasonal sales patterns"
+- "Profit margin analysis"
+
+Just ask for any report you need!"""
+            await send(template_text)
+            return "OK"
+
         # -------------- gather awaited results --------------
         (
             user_record,
