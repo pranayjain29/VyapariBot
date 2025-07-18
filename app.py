@@ -277,15 +277,16 @@ You are VYAPARI's INVOICE SPECIALIST.
 5. **raw_message** (String): The user's text as it is
 
 ### OPTIONAL FIELDS:
-6. **discounts** (List of float): discount per unit given for that item. (Assume 0.0 if not provided)
-7. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
-8. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
-9. **company details**: Various company details like name, address, etc.
-10. **date** (string): Format as YYYY-MM-DD (if missing, today's date)
-11. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
-12. **currency** (string): INR/USD/EUR (default: "INR")
-13. **customer_name** (string): If mentioned
-14. **customer_details** (String): Phone, address if provided
+6. **item_codes** (List of String): in order with item_names ONLY IF user has given item_code, else DO NOT pass this.
+7. **discounts** (List of float): discount per unit given for that item. (Assume 0.0 if not provided)
+8. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
+9. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
+10. **company details**: Various company details like name, address, etc.
+11. **date** (string): Format as YYYY-MM-DD (if missing, today's date)
+12. **payment_method** (string): cash/credit/gpay/paytm/card (default: "cash")
+13. **currency** (string): INR/USD/EUR (default: "INR")
+14. **customer_name** (string): If mentioned
+15. **customer_details** (String): Phone, address if provided
 
 If some fields are not provided, please don't pass it as an argument.
 
@@ -451,6 +452,9 @@ def handle_invoice_request(
     date: str,
     raw_message: str,
 
+    # OPTIONAL item_codes
+    item_codes: Optional[List[str]] = None,
+
     # OPTIONAL Company details
     payment_method="cash",
     company_name="Company Name",
@@ -480,26 +484,35 @@ def handle_invoice_request(
     Many OPTIONAL fields which you must not include if the value is not provided.
     """
     try:
+        if item_codes is None:
+            item_codes = [""] * len(item_names)
+
         # Validation
         if not all([item_names, quantities, prices]):
             return "❌ Missing required fields for invoice generation."
         
-        if not (len(item_names) == len(quantities) == len(prices)):
+        if not (len(item_names) == len(quantities) == len(prices) == len(item_codes)):
             return "❌ Item lists must have equal length."
         
         # Validate data types
-        for i, (name, qty, price) in enumerate(zip(item_names, quantities, prices)):
+        for i, (name, code, qty, price) in enumerate(zip(item_names, item_codes, quantities, prices)):
             if not isinstance(name, str) or not name.strip():
                 return f"❌ Invalid item name at position {i+1}"
+            if code is not None and not isinstance(code, str):
+                return f"❌ Invalid item code at position {i}"
             if not isinstance(qty, int) or qty <= 0:
                 return f"❌ Invalid quantity at position {i+1}"
             if not isinstance(price, (int, float)) or price <= 0:
                 return f"❌ Invalid price at position {i+1}"
 
+        # Pad discounts if caller provided fewer than items
+        if len(discounts) < len(item_names):
+            discounts += [0.0] * (len(item_names) - len(discounts))
+
         # Build the structure expected by generate_invoice
         items = [
-            {"name": n, "qty": q, "rate": p, "discount": d}
-            for n, q, p, d in zip(item_names, quantities, prices, discounts)
+            {"name": n, "code": c, "qty": q, "rate": p, "discount": d}
+            for n, c, q, p, d in zip(item_names, item_codes, quantities, prices, discounts)
         ]
 
         # Call the updated invoice generator
@@ -540,9 +553,13 @@ def handle_invoice_request(
         blended_tax_rate = cgst_rate + sgst_rate + igst_rate        # e.g. 9 + 9 + 0 = 18
 
         for itm in items:
+
+            itm_code = itm["code"].strip() or None
+
             # -> write one DB row per item
             write_transaction(
                 chat_id            = chat_id,
+                item_code          = itm["code"],
                 item_name          = itm["name"],
                 quantity           = itm["qty"],
                 price_per_unit     = itm["rate"],
