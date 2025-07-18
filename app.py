@@ -278,7 +278,7 @@ You are VYAPARI's INVOICE SPECIALIST.
 
 ### OPTIONAL FIELDS:
 6. **item_codes** (List of String): in order with item_names ONLY IF user has given item_code, else DO NOT pass this.
-7. **discounts** (List of float): discount per unit given for that item. (Assume 0.0 if not provided)
+7. **discounts** (List of float): discount per unit given for that item. (Don't pass if not provided)
 8. **cgst_rate, sgst_rate and igst_rate**: 0.0 if not provided
 9. **payment_method** (String): cash/credit/gpay/paytm/debit card (default: "cash")
 10. **company details**: Various company details like name, address, etc.
@@ -302,6 +302,7 @@ PROCESSING WORKFLOW:
 - Generates Invoices. Accept parallel lists for item name, quantity, and price.
 - Use `handle_invoice_request` tool only ONCE for all items
 - Include ALL transaction items in single invoice
+- If error, analyze error and try again.
 
 Remember: Use tool only ONCE for all items and then notify the user. 
 Accuracy is key - one mistake affects the entire business record!
@@ -448,12 +449,12 @@ def handle_invoice_request(
     item_names: List[str],
     quantities: List[int],
     prices: List[float],
-    discounts: List[float],
     date: str,
     raw_message: str,
 
     # OPTIONAL item_codes
     item_codes: Optional[List[str]] = None,
+    discounts: Optional[List[float]] = None,
 
     # OPTIONAL Company details
     payment_method="cash",
@@ -486,6 +487,9 @@ def handle_invoice_request(
     try:
         if item_codes is None:
             item_codes = [""] * len(item_names)
+
+        if discounts is None:
+            discounts = [0.0] * len(item_names)
 
         # Validation
         if not all([item_names, quantities, prices]):
