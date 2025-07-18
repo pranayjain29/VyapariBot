@@ -7,7 +7,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from datetime import datetime, timedelta, timezone, date
 from supabase import create_client, Client
-import csv, tempfile, os
+import csv, tempfile, os, re, unicodedata
 from agents import Agent, Runner, trace, function_tool
 from typing import List, Dict, Any, Union
 from decimal import Decimal, ROUND_HALF_UP
@@ -280,6 +280,19 @@ def update_user_field(chat_id: int, column: str, value: Any):
         print(f"Error updating '{column}' for chat_id {chat_id}: {e}")
         return None
 
+def normalise(text: str) -> str:
+    """
+    1. lower-case
+    2. trim leading/trailing spaces
+    3. collapse any internal whitespace → no space
+    4. strip punctuation / symbols (retain a-z, 0-9)
+    5. remove diacritics (é → e, ñ → n)
+    """
+    text = text.lower().strip()                               # steps 1 & 2
+    text = unicodedata.normalize("NFKD", text).encode("ascii","ignore").decode("ascii")  # step 5
+    text = re.sub(r"\s+", "", text)                           # step 3 (remove all whitespace)
+    return re.sub(r"[^a-z0-9]", "", text)                     # step 4
+
 @function_tool
 def read_transactions(chat_id: int):
     """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
@@ -382,15 +395,18 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
     print(f"Supabase delete response → rows deleted: {len(deleted_rows)}")
     return len(deleted_rows) > 0
 
-def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, discount_per_unit: float = 0.0, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
+def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_unit: float, tax_rate: float, invoice_date : str, invoice_number: str, item_code: str = None, discount_per_unit: float = 0.0, raw_message: str = None, payment_method: str = 'cash', currency: str = 'INR', customer_name: str = "", customer_details: str = ""):
     """Writes/Stores a new transaction to the 'vyapari_transactions' table.
         Expects invoice_date field in yyyy-MM-dd format. """
     try:
         # Convert date string to datetime object if it's a string
         date_obj = datetime.fromisoformat(invoice_date) if isinstance(invoice_date, str) else invoice_date
+        if not item_code:
+            item_code = normalise(item_name)
 
         data = {
             "chat_id": str(chat_id), # Store chat_id as string
+            "item_code": item_code,
             "item_name": item_name,
             "quantity": quantity,
             "price_per_unit": price_per_unit,
