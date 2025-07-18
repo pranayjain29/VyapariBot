@@ -193,13 +193,13 @@ Hello! I'm here to help you manage your business with simple, everyday language.
 <b>1. Record Sales & Generate Invoices</b>
 Just tell me about your sale in plain language, and I'll handle the rest!
 
-Required: Product name, quantity, and price per unit
-Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
+Required: /record to record, product name, quantity, and price per unit
+Optional: Date (defaults to today), product code, payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
 
 Example texts:
-- "I sold 5 packets of tea for ₹20 each to Ram. Discount rupees 5"
-- "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card. Discount of 10%."
-- "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
+- "/record I sold 5 packets of tea for ₹20 each to Ram. Discount rupees 5"
+- "/record Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card. Discount of 10%."
+- "/record Record sale: 10 notebooks ₹25 each, customer paid via GPay"
 
 <i>Note: To delete any transaction, use /delete.</i>
 
@@ -207,10 +207,10 @@ Example texts:
 Get your complete sales data or ask for reports and analysis.
 
 Example texts:
-- "Download all my sales data"
-- "Show me this month's revenue"
-- "Which product sells the most?"
-- "Give me weekly sales report"
+- "/report Download all my sales data"
+- "/report Show me this month's revenue"
+- "/report Which product sells the most?"
+- "/report Give me weekly sales report"
 
 <b>3. General Business Advice & Support</b>
 I'm here for friendly conversations and business guidance too!
@@ -229,6 +229,10 @@ Set Company Details: Type `/company` followed by your business information
 Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
 
 Delete Transactions: Type '/delete' and follow the steps to delete any transaction you want.
+
+To record transactions or generate invoice: Type '/record' followed by your transaction details.
+
+To get your transaction data or business insights: Type '/report' followed by your request.
 ---
 
 <b>🔒 YOUR DATA IS SAFE WITH US</b>
