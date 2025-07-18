@@ -184,6 +184,57 @@ def rate_limiter(max_calls: int = 20, time_window: int = 60):
 
     return _dependency
 
+start_text = r"""🎉 Welcome to Your Business Assistant Bot!
+
+Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
+
+📝 What I Can Do For You:
+
+<b>1. Record Sales & Generate Invoices</b>
+Just tell me about your sale in plain language, and I'll handle the rest!
+
+Required: Product name, quantity, and price per unit
+Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
+
+Example texts:
+- "I sold 5 packets of tea for ₹20 each to Ram. Discount rupees 5"
+- "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card. Discount of 10%."
+- "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
+
+<i>Note: To delete any transaction, use /delete.</i>
+
+<b>2. Download Data & Business Insights</b>
+Get your complete sales data or ask for reports and analysis.
+
+Example texts:
+- "Download all my sales data"
+- "Show me this month's revenue"
+- "Which product sells the most?"
+- "Give me weekly sales report"
+
+<b>3. General Business Advice & Support</b>
+I'm here for friendly conversations and business guidance too!
+
+Example texts:
+- "How can I increase my sales?"
+- "What's the best way to handle customer complaints?"
+- "Help me plan my inventory"
+
+<b>⚙️ Quick Settings:</b>
+
+Change Language: Type `/language` followed by your preferred language
+Example: /language Hindi
+
+Set Company Details: Type `/company` followed by your business information
+Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
+
+Delete Transactions: Type '/delete' and follow the steps to delete any transaction you want.
+---
+
+<b>🔒 YOUR DATA IS SAFE WITH US</b>
+
+Ready to get started? Just tell me about your first sale or ask me anything
+"""
 # Vyapari character system prompt
 VYAPARI_PROMPT = r"""
 You are a seasoned Indian businessman (Vyapari), an AI chatbot with these traits:
@@ -191,24 +242,11 @@ You are a seasoned Indian businessman (Vyapari), an AI chatbot with these traits
 PERSONALITY & COMMUNICATION:
 - 🔑 Rule: ALWAYS reply in the SAME language as the user. FOLLOW User's Preferred Language.
 - Traits: Direct, witty, practical, middle-aged with a sharp sense of humor.
-- Business Wisdom: Use local proverbs or phrases naturally
-
-TASK ROUTING (with COMPLETE language/context passed):
-
-1. INVOICE/SALES REQUESTS ("Sold", "Transactions", "Invoice", "Recording transaction/sales",
-etc) → Use Invoice_Generator_And_Transaction_Recorder as a tool ONLY ONCE and stop when you recieve success message.
-"
-2. Report/Analytics ("Data Download", "Report", "Sales data", "Insights",
-"Summaries/Performance Queries") → Hand off to Report_Agent 
-
-3. General Chat → Handle directly
-**Examples**: Greetings, business advice, general questions, casual conversations
+- Business Wisdom: Use proverbs or phrases naturally.
 
 DECISION FRAMEWORK:
 Before responding, ask yourself:
-1. "Does this involve recording/generating invoices?" → use this tool: Invoice_Generator_And_Transaction_Recorder
-2. "Does this need transaction data/reports?" → Report_Agent  
-3. "Is this general business chat?" → Handle myself
+   What does the user need? What will answer his/her query perfectly in his/her language?
 
 FORMATTING:
 1️⃣  Allowed formatting
@@ -222,8 +260,9 @@ FORMATTING:
     ✘ No tables (<table>, <tr>, <td>) or advanced HTML/CSS positioning.  
     ✘ No external assets (images, iframes).
 
-Remember: You're the wise business advisor who knows when to delegate!
+Remember: You're the wise business advisor who knows how to explain and talk to humans!
 """
+VYAPARI_PROMPT += start_text
 
 INVOICE_PROMPT = """
 You are VYAPARI's INVOICE SPECIALIST.
@@ -395,16 +434,11 @@ class AgentFactory:
         )
     
     @staticmethod
-    def create_vyapari_agent(context: str, invoice_agent: Agent) -> Agent:
+    def create_vyapari_agent(context: str) -> Agent:
         return Agent(
             name="Vyapari", 
             instructions=VYAPARI_PROMPT + context, 
-            model=app_state.model1,
-            tools=[invoice_agent.as_tool(
-                tool_name="Invoice_Generator_And_Transaction_Recorder",
-                tool_description="Generates Invoice and Records the Transaction",
-            )],
-            handoffs=[AgentFactory.create_report_agent(context)]
+            model=app_state.model1
         )
 
 @function_tool
@@ -669,58 +703,6 @@ async def telegram_webhook(request: Request):
         company_details_future = read_val("company_details")
 
         if message.get('text', '').startswith(r"/start"):
-            start_text = r"""
-            🎉 Welcome to Your Business Assistant Bot!
-
-Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
-
-📝 What I Can Do For You:
-
-<b>1. Record Sales & Generate Invoices</b>
-Just tell me about your sale in plain language, and I'll handle the rest!
-
-Required: Product name, quantity, and price per unit
-Optional: Date (defaults to today), payment method (cash/credit/gpay/paytm/card), currency (INR/USD/EUR), customer name, and customer details
-
-Example texts:
-- "I sold 5 packets of tea for ₹20 each to Ram. Discount rupees 5"
-- "Generate invoice for 2 laptop repairs at rupees 150 each, paid by credit card. Discount of 10%."
-- "Record sale: 10 notebooks ₹25 each, customer paid via GPay"
-
-<i>Note: To delete any transaction, use /delete.</i>
-
-<b>2. Download Data & Business Insights</b>
-Get your complete sales data or ask for reports and analysis.
-
-Example texts:
-- "Download all my sales data"
-- "Show me this month's revenue"
-- "Which product sells the most?"
-- "Give me weekly sales report"
-
-<b>3. General Business Advice & Support</b>
-I'm here for friendly conversations and business guidance too!
-
-Example texts:
-- "How can I increase my sales?"
-- "What's the best way to handle customer complaints?"
-- "Help me plan my inventory"
-
-<b>⚙️ Quick Settings:</b>
-
-Change Language: Type `/language` followed by your preferred language
-Example: /language Hindi
-
-Set Company Details: Type `/company` followed by your business information
-Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
-
-Delete Transactions: Type '/delete' and follow the steps to delete any transaction you want.
----
-
-<b>🔒 YOUR DATA IS SAFE WITH US</b>
-
-Ready to get started? Just tell me about your first sale or ask me anything!
-            """
             await send(start_text)
             await send_tx_template_button(chat_id)
             return "OK"
@@ -789,16 +771,62 @@ Ready to get started? Just tell me about your first sale or ask me anything!
 
         # Prepare context
         current_date = datetime.now().strftime('%Y-%m-%d')
-        master_context = f"\nChat ID: {chat_id}\nHistory: {history}\n Today's Date: {current_date}\n User's Preferred Language: {user_language}"
-        child_context = f"\nChat ID: {chat_id}\n Today's Date: {current_date}\n User's Preferred Language: {user_language}"
-
-        text += f" \n[Context: {child_context}. Speak in user's preferred language only]"
+        master_context = f"\nChat ID: {chat_id}\nHistory: {history[:500]}\n Today's Date: {current_date}\nCompany Details are: {company_details}\n User's Preferred Language: {user_language}"
+        master_context += f" \n.Speak in user's preferred language only]"
 
         # Create agents using factory pattern
-        invoice_agent = AgentFactory.create_invoice_agent(child_context + f"\nCompany Details are: {company_details}")
-        vyapari_agent = AgentFactory.create_vyapari_agent(master_context, invoice_agent)
+        invoice_agent = AgentFactory.create_invoice_agent(master_context)
+        vyapari_agent = AgentFactory.create_vyapari_agent(master_context)
+        report_agent = AgentFactory.create_report_agent(master_context)
 
         print("Created All Agents")
+
+        if "/record" in message.get("text", ""):
+            with trace("Invoice Agent"):
+                response = await run_with_progress(          # <<< NEW
+                    chat_id,
+                    Runner.run(invoice_agent, text),
+                    ack_msg="🤔 Let me record that...",    # appears instantly
+                    # done_msg can be omitted; final_output arrives right after
+                )
+
+            await send(response.final_output)
+            await send_tx_template_button(chat_id)
+
+            bot_text = "Invoice Agent: "
+            bot_text += response.final_output
+            await run_blocking(
+                log_message,
+                chat_id,
+                bot_text,
+                int(datetime.now(timezone.utc).timestamp()),
+            )
+
+            return 'OK'
+
+        if "/report" in message.get("text", ""):
+            with trace("Report Agent"):
+                response = await run_with_progress(          # <<< NEW
+                    chat_id,
+                    Runner.run(report_agent, text),
+                    ack_msg="🤔 Let me analyze that...",    # appears instantly
+                    # done_msg can be omitted; final_output arrives right after
+                )
+
+            await send(response.final_output)
+            await send_tx_template_button(chat_id)
+
+            bot_text = "Report Agent: "
+            bot_text += response.final_output
+            await run_blocking(
+                log_message,
+                chat_id,
+                bot_text,
+                int(datetime.now(timezone.utc).timestamp()),
+            )
+
+            return 'OK'
+
         with trace("Vyapari Agent"):
             response = await run_with_progress(          # <<< NEW
                 chat_id,
@@ -810,7 +838,7 @@ Ready to get started? Just tell me about your first sale or ask me anything!
         await send(response.final_output)
         await send_tx_template_button(chat_id)
 
-        bot_text = "Assitant: "
+        bot_text = "Vyapari Agent: "
         bot_text += response.final_output
         await run_blocking(
             log_message,

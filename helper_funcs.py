@@ -305,6 +305,7 @@ async def send_tx_template_button(chat_id: int):
 
     # Template for recording a sale
     sale_template = (
+    "/record\n"
     "Record Transaction:\n"
     "Item(s): (item name)\n"             # ← use parentheses instead
     "Quantity(s): 1\n"
@@ -318,10 +319,10 @@ async def send_tx_template_button(chat_id: int):
     )
 
     # Template for downloading data
-    download_template = "Download all my sales data"
+    download_template = f"/report \nDownload all my sales data"
 
     # Template for getting reports
-    report_template = "Show me this month's revenue"
+    report_template = f"/report \nShow me this month's revenue"
 
     keyboard = {
         "inline_keyboard": [
