@@ -489,45 +489,57 @@ def write_and_update_inventory(
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    rows = []
     for name, code, stock, uom, cost, sale in zip(
         item_names, item_codes, current_stocks, unit_of_measures, cost_prices, sale_prices
     ):
         if not name or stock is None or cost is None:
-            raise ValueError("Empty required field detected during row build.")
+            raise ValueError("Missing required item field")
 
         clean_code = (code or "").strip() or normalise(name)
         clean_uom  = (uom or "").strip() or "pcs"
 
-        rows.append(
-            {
-                "chat_id":         str(chat_id),
-                "item_name":       name.strip(),
-                "item_code":       clean_code,
-                "current_stock":   stock,
-                "unit_of_measure": clean_uom,
-                "cost_price":      cost,
-                "sale_price":      sale,
-                "raw_message":     raw_message,
-                "updated_at":      now_iso,
-            }
-        )
+        row = {
+            "chat_id":         chat_id,
+            "item_name":       name.strip(),
+            "item_code":       clean_code,
+            "current_stock":   stock,
+            "unit_of_measure": clean_uom,
+            "cost_price":      cost,
+            "sale_price":      sale,
+            "raw_message":     raw_message,
+            "updated_at":      now_iso,
+        }
 
-    # ---------------------------
-    # 3️⃣ Upsert to Supabase
-    # ---------------------------
-    try:
-        (
-            supabase
-            .table("vyapari_inventory")
-            .upsert(rows, on_conflict="chat_id,item_code")   # adjust unique key if needed
-            .execute()
-        )
-        print("Inventory upsert successful: %s rows (chat_id=%s)", len(rows), chat_id)
+        # ---------- 3️⃣  Upsert without ON CONFLICT --------
+        try:
+            # Does a record already exist?
+            existing = (
+                supabase
+                .table("vyapari_inventory")
+                .select("id")
+                .eq("chat_id", chat_id)
+                .eq("item_code", clean_code)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                # -> UPDATE
+                supabase.table("vyapari_inventory") \
+                        .update(row) \
+                        .eq("id", existing.data[0]["id"]) \
+                        .execute()
+            else:
+                # -> INSERT (add created_at only once)
+                row["created_at"] = now_iso
+                supabase.table("vyapari_inventory") \
+                        .insert(row) \
+                        .execute()
 
-    except Exception as exc:
-        print(f"Supabase upsert failed: {exc}")
-        raise
+        except Exception as exc:
+            print(f"Inventory write error:  {chat_id}, {clean_code}, {exc}")
+            raise
+
+    print(f"Inventory processed successfully: {n_items} items {chat_id}")
 
 def read_value_by_chat_id(
     table_name: str,
