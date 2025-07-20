@@ -324,7 +324,7 @@ def update_inventory_stock(
         existing = (
             supabase.table("vyapari_inventory")
             .select("id,current_stock")
-            .eq("chat_id", chat_id)
+            .eq("chat_id", str(chat_id))
             .eq("item_code", item_code)
             .limit(1)
             .execute()
