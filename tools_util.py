@@ -400,10 +400,11 @@ def read_transactions(chat_id: int):
         print(f"Error reading transactions: {e}")
         return None
 
-def read_transactions_vanilla(chat_id: int):
+@function_tool
+def read_inventories(chat_id: int):
     """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
     try:
-        response = supabase.table('vyapari_transactions').select('*').eq('chat_id', str(chat_id)).execute()
+        response = supabase.table('vyapari_inventory').select('*').eq('chat_id', str(chat_id)).execute()
         # Convert chat_id back to integer for consistency if needed elsewhere,
         # but the data from DB will have it as string based on how it's stored.
         # For this function, we just return the data as is from the DB.
@@ -411,6 +412,49 @@ def read_transactions_vanilla(chat_id: int):
     except Exception as e:
         print(f"Error reading transactions: {e}")
         return None
+
+def read_table_vanilla(chat_id: int, table: str):
+    """Reads transactions for a given chat_id from the 'vyapari_transactions' table."""
+    try:
+        response = supabase.table(table).select('*').eq('chat_id', str(chat_id)).execute()
+        # Convert chat_id back to integer for consistency if needed elsewhere,
+        # but the data from DB will have it as string based on how it's stored.
+        # For this function, we just return the data as is from the DB.
+        return response.data
+    except Exception as e:
+        print(f"Error reading transactions: {e}")
+        return None
+
+def download_Inventories_CSV(chat_id: int) -> str:
+    """
+    Fetches transactions via read_transactions(), writes them to a temporary
+    CSV file, sends it to the user, then deletes the temp file.
+
+    """
+    try:
+
+        # ── 1. Pull data from Supabase ───────────────────────────────────────
+        data = read_table_vanilla(
+            chat_id=chat_id,
+            table="vyapari_inventory"
+        )
+
+        if not data:
+            return "❌ Bhai, there is no inventory data for this chat_id."
+        
+        # ── 3. Write CSV to temp file ───────────────────────────────────────
+        file_name = f"inventories_{chat_id}_{datetime.now().strftime('%Y-%m')}_{datetime.now().strftime('%d%H%M')}.csv"
+        with open(file_name, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(data[0].keys()))
+            writer.writeheader()
+            writer.writerows(data)
+
+        print(f"CSV Generated: {file_name}")
+        return file_name
+
+    except Exception as e:
+        print(f"[download_Inventories_CSV] {e}")
+        return "❌ Error in generating CSV."
 
 def download_Transactions_CSV(chat_id: int) -> str:
     """
@@ -421,8 +465,9 @@ def download_Transactions_CSV(chat_id: int) -> str:
     try:
 
         # ── 1. Pull data from Supabase ───────────────────────────────────────
-        data = read_transactions_vanilla(
-            chat_id=chat_id
+        data = read_table_vanilla(
+            chat_id=chat_id,
+            table="vyapari_transactions"
         )
 
         if not data:

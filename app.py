@@ -23,12 +23,7 @@ except ImportError:
     REDIS_AVAILABLE = False
     redis = None
 
-from tools_util import (
-    read_transactions, download_Transactions_CSV, generate_invoice, 
-    write_transaction, read_user, get_last_messages, log_message,
-    update_user_field, read_value_by_chat_id, write_user, update_last_used_date,
-    write_and_update_inventory
-)
+from tools_util import *
 from helper_funcs import *
 
 import re
@@ -319,10 +314,12 @@ You are the ANALYTICS SPECIALIST of VYAPARI - expert in business intelligence an
 🗣️ Rule: ALWAYS Reply in user's language. FOLLOW User's Preferred Language.
 
 Tools:
-- To fetch data: "read_transactions" (all the necessary parameters are provided to you)
+- To fetch transactions data: "read_transactions" (all the necessary parameters are provided to you)
+- To fetch inventories data: "read_inventories" (all the necessary parameters are provided to you)
 - For CSV export: "download_transactions_csv"
+- For CSV export: "download_inventories_csv"
 
-Sometimes user might only need the transactions csv file. In that case use only the tool: download_transactions_csv.
+Sometimes user might only need the transactions csv file or inventories. In that case use only the tool: download_transactions_csv or download_inventories_csv.
 
 ## TASK FLOW:
 
@@ -347,7 +344,7 @@ Transform transaction data into actionable business insights.
 
 ### FINANCIAL REPORTS:
 - Revenue analysis (daily/weekly/monthly/yearly)
-- Profit margins and trends
+- Profit margins and trends (use inventories data to come up with profits)
 - Payment method breakdowns
 - Currency-wise summaries
 
@@ -472,7 +469,7 @@ class AgentFactory:
             name="Report Generator", 
             instructions=REPORT_PROMPT + context, 
             model=app_state.model2,
-            tools=[read_transactions, download_transactions_csv]
+            tools=[read_transactions, read_inventories, download_transactions_csv, download_inventories_csv]
         )
     
     @staticmethod
@@ -653,6 +650,23 @@ def download_transactions_csv(chat_id: int) -> str:
         print(f"[download_transactions_csv] {e}")
         return "❌ Error in making CSV. Sorry brother."
         
+@function_tool
+def download_inventories_csv(chat_id: int) -> str:
+
+    try:
+        csv_name = download_Inventories_CSV(chat_id=chat_id)
+
+        # ──  Send file via Telegram ─────
+        send_document(chat_id, csv_name)
+
+        # ── Housekeeping ─────
+        os.remove(csv_name)
+        return "✅ CSV Sent Successfully."
+
+    except Exception as e:
+        print(f"[download_transactions_csv] {e}")
+        return "❌ Error in making CSV. Sorry brother."
+
 @app.post("/webhook", dependencies=[Depends(rate_limiter(max_calls=20, time_window=60))])
 async def telegram_webhook(request: Request):
     start_time = time.time()
