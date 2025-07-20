@@ -539,7 +539,7 @@ def write_and_update_inventory(
             print(f"Inventory write error:  {chat_id}, {clean_code}, {exc}")
             raise
 
-    print(f"Inventory processed successfully: {n_items} items {chat_id}")
+    print(f"Inventory processed successfully: {req_len} items {chat_id}")
 
 def read_value_by_chat_id(
     table_name: str,
