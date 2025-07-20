@@ -281,7 +281,6 @@ def update_user_field(chat_id: int, column: str, value: Any):
         return None
 
 def update_inventory_stock(
-    *,
     chat_id: int,
     quantity_delta: int,
     # identification – at least one must be provided
