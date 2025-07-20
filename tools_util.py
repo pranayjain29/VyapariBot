@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone, date
 from supabase import create_client, Client
 import csv, tempfile, os, re, unicodedata
 from agents import Agent, Runner, trace, function_tool
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Union, Any, Optional
 from decimal import Decimal, ROUND_HALF_UP
 
 # Initialize Supabase client
