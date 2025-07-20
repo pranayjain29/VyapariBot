@@ -523,10 +523,10 @@ def write_and_update_inventory(
             .upsert(rows, on_conflict="chat_id,item_code")   # adjust unique key if needed
             .execute()
         )
-        logger.info("Inventory upsert successful: %s rows (chat_id=%s)", len(rows), chat_id)
+        print("Inventory upsert successful: %s rows (chat_id=%s)", len(rows), chat_id)
 
     except Exception as exc:
-        logger.error("Supabase upsert failed: %s", exc, exc_info=True)
+        print("Supabase upsert failed: %s", exc, exc_info=True)
         raise
 
 def read_value_by_chat_id(
