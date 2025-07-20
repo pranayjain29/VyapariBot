@@ -431,6 +431,104 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
         print(f"Error writing transaction: {e}")
         return None
 
+@function_tool
+def write_and_update_inventory(
+    *,
+    chat_id: int,
+    item_names: List[str],
+    current_stocks: List[int],
+    unit_of_measures: List[str],
+    cost_prices: List[float],
+    raw_message: str,
+    # OPTIONAL
+    item_codes: Optional[List[str]] = None,
+    sale_prices: Optional[List[float]] = None,
+) -> None:
+    """
+    Upserts rows into the `vyapari_inventory` table.
+
+    Rules
+    -----
+    • All required list-type params must share the same length.
+    • If `item_codes` is None or any element is '', it is replaced with `normalise(item_name)`.
+    • If `sale_prices` is not supplied, it is ignored.
+    • `unit_of_measures` blanks default to 'pcs'.
+    • `updated_at` is refreshed every call; `created_at` left to DB default.
+
+    Raises
+    ------
+    ValueError  – length mismatch or empty required value
+    Exception   – any Supabase client failure is re-raised
+    """
+    # ---------------------------
+    # 1️⃣ Basic length validation
+    # ---------------------------
+    required_lists = {
+        "item_names": item_names,
+        "current_stocks": current_stocks,
+        "unit_of_measures": unit_of_measures,
+        "cost_prices": cost_prices,
+    }
+    req_len = len(item_names)
+    for key, lst in required_lists.items():
+        if len(lst) != req_len:
+            raise ValueError(f"Length mismatch: '{key}' expected {req_len}, got {len(lst)}")
+
+    if item_codes and len(item_codes) != req_len:
+        raise ValueError("Length mismatch: 'item_codes'")
+    if sale_prices and len(sale_prices) != req_len:
+        raise ValueError("Length mismatch: 'sale_prices'")
+
+    # ---------------------------
+    # 2️⃣ Normalise optional data
+    # ---------------------------
+    if item_codes is None:
+        item_codes = [""] * req_len
+    if sale_prices is None:
+        sale_prices = [None] * req_len
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    rows = []
+    for name, code, stock, uom, cost, sale in zip(
+        item_names, item_codes, current_stocks, unit_of_measures, cost_prices, sale_prices
+    ):
+        if not name or stock is None or cost is None:
+            raise ValueError("Empty required field detected during row build.")
+
+        clean_code = (code or "").strip() or normalise(name)
+        clean_uom  = (uom or "").strip() or "pcs"
+
+        rows.append(
+            {
+                "chat_id":         str(chat_id),
+                "item_name":       name.strip(),
+                "item_code":       clean_code,
+                "current_stock":   stock,
+                "unit_of_measure": clean_uom,
+                "cost_price":      cost,
+                "sale_price":      sale,
+                "raw_message":     raw_message,
+                "updated_at":      now_iso,
+            }
+        )
+
+    # ---------------------------
+    # 3️⃣ Upsert to Supabase
+    # ---------------------------
+    try:
+        (
+            supabase
+            .table("vyapari_inventory")
+            .upsert(rows, on_conflict="chat_id,item_code")   # adjust unique key if needed
+            .execute()
+        )
+        logger.info("Inventory upsert successful: %s rows (chat_id=%s)", len(rows), chat_id)
+
+    except Exception as exc:
+        logger.error("Supabase upsert failed: %s", exc, exc_info=True)
+        raise
+
 def read_value_by_chat_id(
     table_name: str,
     chat_id: int | str,

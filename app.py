@@ -412,6 +412,41 @@ Remember: Your reports should help the user make better business decisions - foc
 CRITICAL: DO NOT COMPLETE BEFORE PERFORMING ALL THE STEPS.
 """
 
+INVENTORY_PROMPT = f"""
+You are VYAPARI's INVENTORY SPECIALIST.
+
+🗣️ Rule: Reply in user's language. FOLLOW User's Language.
+
+### REQUIRED FIELDS:
+1. **chat_id** (Integer): Provided to you
+2. **item_names** (List of String): Product/service name
+3. **current_stocks** (List of integer): Must be numeric (convert "baara" → 12, "paach" → 5, if not mentioned take it as 1)
+4. **unit_of_measures** (List of String): Unit in which current_stocks is mentioned. If none given, use "pcs" as default.
+5. **cost_prices** (List of Cost Prices): Price per unit at which this stock was bought.
+6. **raw_message** (String): The user's text as it is
+
+### OPTIONAL FIELDS:
+7. **item_codes** (List of String): in order with item_names ONLY IF user has given item_code, else DO NOT pass this.
+8. **sale_prices** (List of float): Sales price per unit given for that item. (Don't pass if not provided)
+
+If some fields are not provided, please don't pass it as an argument.
+
+PROCESSING WORKFLOW:
+
+### STEP 1: DATA VALIDATION
+- Validate Required Fields Only. If some of the important fields are absent, HELP user
+  to write all the required information, ask him to mention everything in one text,
+  teach with examples, and DON'T use any tool or handoffs.
+
+### STEP 2: Record/Update Inventory
+- Record/Update Inventory. Accept parallel lists for item name, item code, current stock, unit of measures, and cost price.
+- Use `write_and_update_inventory` tool only ONCE for all items
+- If error, analyze error and try again.
+
+Remember: Use tool only ONCE for all items and then notify the user. 
+Accuracy is key - one mistake affects the entire business record!
+"""
+
 def run_blocking(func, *args, **kwargs):
     """Return an awaitable that executes *func* in the thread-pool."""
     if not app_state.executor:
@@ -445,6 +480,15 @@ class AgentFactory:
             name="Vyapari", 
             instructions=VYAPARI_PROMPT + context, 
             model=app_state.model1
+        )
+    
+    @staticmethod
+    def create_inventory_agent(context: str) -> Agent:
+        return Agent(
+            name="Inventory Agent",
+            instructions=INVENTORY_PROMPT + context,
+            model=app_state.model2,
+            tools=[write_and_update_inventory]
         )
 
 @function_tool
@@ -803,6 +847,7 @@ async def telegram_webhook(request: Request):
         invoice_agent = AgentFactory.create_invoice_agent(master_context)
         vyapari_agent = AgentFactory.create_vyapari_agent(master_context)
         report_agent = AgentFactory.create_report_agent(master_context)
+        inventory_agent = AgentFactory.create_inventory_agent(master_context)
 
         print("Created All Agents")
 
@@ -842,6 +887,29 @@ async def telegram_webhook(request: Request):
             await send_tx_template_button(chat_id)
 
             bot_text = "Report Agent: "
+            bot_text += response.final_output
+            await run_blocking(
+                log_message,
+                chat_id,
+                bot_text,
+                int(datetime.now(timezone.utc).timestamp()),
+            )
+
+            return 'OK'
+
+        if "/inventory" in message.get("text", ""):
+            with trace("Inventory Agent"):
+                response = await run_with_progress(          # <<< NEW
+                    chat_id,
+                    Runner.run(inventory_agent, text),
+                    ack_msg="🤔 Let me record that...",    # appears instantly
+                    # done_msg can be omitted; final_output arrives right after
+                )
+
+            await send(response.final_output)
+            await send_tx_template_button(chat_id)
+
+            bot_text = "Inventory Agent: "
             bot_text += response.final_output
             await run_blocking(
                 log_message,
