@@ -526,7 +526,7 @@ def write_and_update_inventory(
         print("Inventory upsert successful: %s rows (chat_id=%s)", len(rows), chat_id)
 
     except Exception as exc:
-        print("Supabase upsert failed: %s", exc, exc_info=True)
+        print(f"Supabase upsert failed: {exc}")
         raise
 
 def read_value_by_chat_id(
