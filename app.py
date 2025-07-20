@@ -26,7 +26,8 @@ except ImportError:
 from tools_util import (
     read_transactions, download_Transactions_CSV, generate_invoice, 
     write_transaction, read_user, get_last_messages, log_message,
-    update_user_field, read_value_by_chat_id, write_user, update_last_used_date
+    update_user_field, read_value_by_chat_id, write_user, update_last_used_date,
+    write_and_update_inventory
 )
 from helper_funcs import *
 
