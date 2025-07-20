@@ -280,6 +280,101 @@ def update_user_field(chat_id: int, column: str, value: Any):
         print(f"Error updating '{column}' for chat_id {chat_id}: {e}")
         return None
 
+def update_inventory_stock(
+    *,
+    chat_id: int,
+    quantity_delta: int,
+    # identification – at least one must be provided
+    item_code: Optional[str] = None,
+    item_name: Optional[str] = None,
+    # fallbacks for auto-creation
+    unit_of_measure: str = "pcs",
+    cost_price: float = 0.0,
+    raw_message: str = "",
+) -> Optional[dict]:
+    """
+    Adjust `current_stock` for a single item in `vyapari_inventory`.
+
+    Parameters
+    ----------
+    chat_id         : User / shop identifier.
+    quantity_delta  : Positive  -> stock increases (purchase / return)
+                      Negative  -> stock decreases (sale / wastage)
+    item_code       : Preferred unique key for the item.
+    item_name       : Required if `item_code` is not supplied
+                      (used for normalisation & record creation).
+    unit_of_measure : Used only if a new record is created.
+    cost_price      : Used only if a new record is created.
+    raw_message     : Optional – original user text for audit.
+
+    Returns
+    -------
+    Supabase response `.data` on success, or `None` on failure.
+    """
+    try:
+        if not item_code and not item_name:
+            raise ValueError("Either item_code or item_name must be provided.")
+
+        # Normalise item_code if missing / blank
+        item_code = (item_code or "").strip()
+        if not item_code:
+            item_code = normalise(item_name)
+
+        # 1️⃣  Fetch existing inventory record (if any)
+        existing = (
+            supabase.table("vyapari_inventory")
+            .select("id,current_stock")
+            .eq("chat_id", chat_id)
+            .eq("item_code", item_code)
+            .limit(1)
+            .execute()
+        )
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if existing.data:
+            # 2️⃣  UPDATE branch
+            record_id     = existing.data[0]["id"]
+            current_stock = existing.data[0]["current_stock"] or 0
+            new_stock     = current_stock + quantity_delta
+
+            response = (
+                supabase.table("vyapari_inventory")
+                .update(
+                    {
+                        "current_stock": new_stock,
+                        "updated_at":    now_iso,
+                    }
+                )
+                .eq("id", record_id)
+                .execute()
+            )
+        else:
+            # 3️⃣  INSERT branch (auto-create record)
+            response = (
+                supabase.table("vyapari_inventory")
+                .insert(
+                    {
+                        "chat_id":         str(chat_id),
+                        "item_name":       item_name or "",
+                        "item_code":       item_code,
+                        "current_stock":   quantity_delta,   # starts with delta
+                        "unit_of_measure": unit_of_measure or "pcs",
+                        "cost_price":      cost_price,
+                        "raw_message":     raw_message,
+                        "created_at":      now_iso,
+                        "updated_at":      now_iso,
+                    }
+                )
+                .execute()
+            )
+
+        return response.data
+
+    except Exception as exc:
+        print(f"Inventory stock update failed: {exc}")
+        return None
+        
 def normalise(text: str) -> str:
     """
     1. lower-case
@@ -357,7 +452,7 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
     lookup = (
         supabase
         .table("vyapari_transactions")
-        .select("total_price_including_tax")    # keep the query lean
+        .select("total_price_including_tax",  "quantity", "item_code")
         .eq("chat_id",        str(chat_id))
         .eq("invoice_number", invoice_number)
         .eq("item_name",      item_name)
@@ -370,12 +465,18 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
         print("delete_transaction: no matching row found")
         return False
 
-    total_price_including_tax = lookup.data[0]["total_price_including_tax"]
+    row  = lookup.data[0]
+    total_price_including_tax = row["total_price_including_tax"]
+    quantity          = row.get("quantity") or 0
+    item_code         = (row.get("item_code") or "").strip() or None
 
     # 2) Update user-level aggregates BEFORE deletion
     #    (negative amount to subtract from totals)
     try:
+        raw_message    = f"Rollback for invoice {invoice_number}"
         update_user_data(chat_id, transaction_amount=-total_price_including_tax)
+        update_inventory_stock(chat_id, -1*quantity, item_code, item_name, raw_message)
+        
     except Exception as exc:
         # Fail fast – do not delete if we couldn't adjust user stats
         print(f"delete_transaction: user update failed → {exc}")
@@ -425,6 +526,7 @@ def write_transaction(chat_id: int, item_name: str, quantity: int, price_per_uni
         }
         response = supabase.table('vyapari_transactions').insert(data).execute()
         update_user_data(chat_id, price_per_unit*quantity)
+        update_inventory_stock(chat_id, -1*quantity, item_code, item_name, raw_message)
         
         return response.data
     except Exception as e:
