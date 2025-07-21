@@ -313,27 +313,69 @@ def get_item_codes(chat_id: int) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────────────
 # /deleteInventory
 # ─────────────────────────────────────────────────────────────────────────────
-async def handle_delete_inventory_command(message: dict):
-    """
-    Triggered when the user sends '/deleteInventory'.
-
-    Immediately shows *all* item codes (root menu = inventory list).
-    """
-    chat_id = message["chat"]["id"]
-
-    # 1. Fetch codes
-    codes = get_item_codes(chat_id)
-
-    # 2. Build message & keyboard
-    if codes:
-        kb = kb_for_item_codes(codes)
-        await send_message(
-            chat_id,
-            "📦 Select the inventory item you want to delete:",
-            kb,
+def delete_inventory_item(chat_id: int, item_code: str) -> bool:
+    try:
+        resp = (
+            supabase.table("vyapari_inventory")
+            .delete()
+            .eq("chat_id", str(chat_id))
+            .eq("item_code", item_code)
+            .execute()
         )
-    else:
-        await send_message(chat_id, "You have no inventory items to delete.")
+        deleted_rows = resp.data if hasattr(resp, "data") else []
+        return len(deleted_rows) > 0
+    except Exception as e:
+        logger.error(f"Error deleting inventory item: {e}")
+        return False
+
+async def handle_delete_inventory_callback(cq: dict):
+    """
+    Processes all callback queries that start with `dinv_`  or
+    the special cancel signal `del_cancel|inv_root`.
+    """
+    chat_id = cq["message"]["chat"]["id"]
+    msg_id = cq["message"]["message_id"]
+
+    action, *parts = cq["data"].split("|")
+
+    async def edit(text: str, kb: dict | None = None):
+        """Inline-edit the message that spawned the callback."""
+        try:
+            async with httpx.AsyncClient(timeout=10) as c:
+                # 1️⃣  edit text / keyboard
+                await c.post(
+                    f"{TELEGRAM_API_URL}/editMessageText",
+                    json={
+                        "chat_id": chat_id,
+                        "message_id": msg_id,
+                        "text": text,
+                        "parse_mode": "HTML",
+                        **({"reply_markup": kb} if kb else {}),
+                    },
+                )
+                # 2️⃣  stop the Telegram spinner
+                await c.post(
+                    f"{TELEGRAM_API_URL}/answerCallbackQuery",
+                    json={"callback_query_id": cq["id"]},
+                )
+        except Exception as e:
+            logger.error(f"Error editing message: {e}")
+
+    # ─── 1. User tapped an item code  ──────────────────────────────
+    if action == "dinv_code":
+        item_code = parts[0]
+        success = delete_inventory_item(chat_id, item_code)
+        if success:
+            await edit(f"✅ Deleted inventory item: <b>{item_code}</b>")
+        else:
+            await edit("❌ Failed to delete inventory item. Please try again.")
+        return
+
+    # ─── 2. Cancel pressed from inventory root  ───────────────────
+    if action == "del_cancel" and parts[0] == "inv_root":
+        await edit("❌ Cancelled.")
+        return
+
 
 async def send_message(chat_id: int, text: str, kb: dict | None = None):
     """Send message with optional keyboard."""
