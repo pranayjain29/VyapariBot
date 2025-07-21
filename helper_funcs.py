@@ -260,7 +260,7 @@ async def handle_invoice_number(msg: dict):
         return
     
     # Extract invoice number (remove "INV" prefix if present)
-    inv_number = text.upper().replace("INV", "").strip()
+    inv_number = text.upper()
     
     try:
         # Find items for this invoice
