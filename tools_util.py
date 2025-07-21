@@ -519,7 +519,7 @@ def delete_transaction(chat_id: int, invoice_number: str, item_name: str) -> boo
     try:
         raw_message    = f"Rollback for invoice {invoice_number}"
         update_user_data(chat_id, transaction_amount=-total_price_including_tax)
-        update_inventory_stock(chat_id, -1*quantity, item_code, item_name, raw_message)
+        update_inventory_stock(chat_id, quantity, item_code, item_name, raw_message)
         
     except Exception as exc:
         # Fail fast – do not delete if we couldn't adjust user stats

@@ -675,6 +675,14 @@ async def telegram_webhook(request: Request):
 
         # 1. CallbackQuery  → delete-wizard branch
         if "callback_query" in update:
+            cq_data = update["callback_query"]["data"]
+
+            # Inventory delete flow  →  starts with "dinv_"
+            if cq_data.startswith("dinv_") or cq_data.startswith("del_cancel|inv_root"):
+                await handle_delete_inventory_callback(update["callback_query"])
+                return "OK"
+
+            # Transaction delete flow (existing)
             await handle_delete_callback(update["callback_query"])
             return "OK"
         
@@ -797,6 +805,14 @@ async def telegram_webhook(request: Request):
                 chat_id,
                 "Delete transaction – choose how you want to find it:",
                 reply_markup=kb_delete_entry()       # <- new keyboard
+            )
+            return "OK"
+
+        if message.get("text", "") == "/deleteInventory":
+            await send_telegram_message(
+                chat_id,
+                "Delete inventory item:",
+                reply_markup=kb_for_item_codes()       # <- new keyboard
             )
             return "OK"
 

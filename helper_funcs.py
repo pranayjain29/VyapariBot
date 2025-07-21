@@ -279,6 +279,62 @@ async def handle_invoice_number(msg: dict):
         logger.error(f"Error handling invoice number: {e}")
         await send_telegram_message(chat_id, "❌ Error occurred. Please try again.")
 
+
+def kb_for_item_codes(codes: list[str]) -> dict:
+    """
+    Inline-keyboard that shows each item_code on a separate row plus ❌ Cancel.
+    """
+    rows = [
+        [{"text": code, "callback_data": f"dinv_code|{code}"}]
+        for code in sorted(codes)
+    ]
+    rows.append(make_cancel_btn("inv_root"))
+    return {"inline_keyboard": rows}
+
+
+def get_item_codes(chat_id: int) -> list[str]:
+    """
+    Distinct, non-blank item_code values for this user.
+    """
+    try:
+        q = (
+            supabase.table("vyapari_inventory")
+            .select("item_code")
+            .eq("chat_id", str(chat_id))
+            .neq("item_code", "")
+            .execute()
+        )
+        return sorted({r["item_code"] for r in q.data})
+    except Exception as e:
+        logger.error(f"Error fetching item codes: {e}")
+        return []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /deleteInventory
+# ─────────────────────────────────────────────────────────────────────────────
+async def handle_delete_inventory_command(message: dict):
+    """
+    Triggered when the user sends '/deleteInventory'.
+
+    Immediately shows *all* item codes (root menu = inventory list).
+    """
+    chat_id = message["chat"]["id"]
+
+    # 1. Fetch codes
+    codes = get_item_codes(chat_id)
+
+    # 2. Build message & keyboard
+    if codes:
+        kb = kb_for_item_codes(codes)
+        await send_message(
+            chat_id,
+            "📦 Select the inventory item you want to delete:",
+            kb,
+        )
+    else:
+        await send_message(chat_id, "You have no inventory items to delete.")
+
 async def send_message(chat_id: int, text: str, kb: dict | None = None):
     """Send message with optional keyboard."""
     try:
