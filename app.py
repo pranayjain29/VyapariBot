@@ -679,7 +679,7 @@ async def telegram_webhook(request: Request):
 
             # Inventory delete flow  →  starts with "dinv_"
             if cq_data.startswith("dinv_") or cq_data.startswith("del_cancel|inv_root"):
-                await handle_delete_inventory_callback(update["callback_query"])
+                await handle_delete_inventory_command(update["callback_query"])
                 return "OK"
 
             # Transaction delete flow (existing)
