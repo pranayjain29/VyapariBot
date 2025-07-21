@@ -809,11 +809,15 @@ async def telegram_webhook(request: Request):
             return "OK"
 
         if message.get("text", "") == "/deleteInventory":
-            await send_telegram_message(
-                chat_id,
-                "Delete inventory item:",
-                reply_markup=kb_for_item_codes()       # <- new keyboard
-            )
+            codes = get_item_codes(chat_id)                  # <- helper from previous answer
+            if codes:
+                await send_telegram_message(
+                    chat_id,
+                    "📦 Select the inventory item you want to delete:",
+                    reply_markup=kb_for_item_codes(codes)    # <- build keyboard with codes
+                )
+            else:
+                await send_telegram_message(chat_id, "You have no inventory items to delete.")
             return "OK"
 
         if message.get('text', '').startswith(r"/language"):
