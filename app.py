@@ -185,12 +185,12 @@ start_text = r"""🎉 Welcome to Your Business Assistant Bot!
 Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
 
 <b>Before you start, please pick a language:</b>
-• Type <b>/language <your language></b>
+• Type /language <your language>
 Example: /language Hindi
 
 <b>After setting the language, you can: </b>
 • Use the buttons below to add or view data, or
-• Type <b>/help</b> to see the full guide.
+• Type /help to see the full guide.
 
 Let’s get started!
 """
