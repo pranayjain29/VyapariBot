@@ -416,6 +416,18 @@ async def send_tx_template_button(chat_id: int):
     "(You can edit any value before sending.)"
     )
 
+    inventory_template = (
+    "/inventory\n"
+    "Inventory Details:\n"
+    "Item(s): (item name)\n"  
+    "Item Code(s): (If none given, will be taken as item name)\n"
+    "Current Stock(s): 0\n"
+    "Unit of Measure(s): pcs\n"
+    "Cost Price(s) per unit: 0\n"
+    "Cost Price(s) per unit: (Optional Field)\n"
+    "(You can edit any value before sending.)"
+    )
+
     # Template for downloading data
     download_template = f"/report \nDownload all my sales data"
 
@@ -435,6 +447,10 @@ async def send_tx_template_button(chat_id: int):
             [{
                 "text": "📈 Get Reports",
                 "switch_inline_query_current_chat": report_template
+            }],
+            [{
+                "text": "📦 Record/Update Inventory",
+                "switch_inline_query_current_chat": inventory_template
             }]
         ]
     }

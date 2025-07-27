@@ -184,6 +184,20 @@ start_text = r"""🎉 Welcome to Your Business Assistant Bot!
 
 Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
 
+<b>Before you start, please pick a language:</b>
+• Type <b>/language <your language></b>
+Example: /language Hindi
+
+<b>After setting the language, you can: </b>
+• Use the buttons below to add or view data, or
+• Type <b>/help</b> to see the full guide.
+
+Let’s get started!
+"""
+documentation_text = r"""🎉 Welcome to Your Business Assistant Bot!
+
+Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
+
 📝 What I Can Do For You:
 
 <b>1. Record Sales & Generate Invoices</b>
@@ -262,7 +276,7 @@ FORMATTING:
 
 Remember: You're the wise business advisor who knows how to explain and talk to humans!
 """
-VYAPARI_PROMPT += start_text
+VYAPARI_PROMPT += "\n Full Documentation" + documentation_text
 
 INVOICE_PROMPT = """
 You are VYAPARI's INVOICE SPECIALIST.
@@ -796,6 +810,11 @@ async def telegram_webhook(request: Request):
 
         if message.get('text', '').startswith(r"/start"):
             await send(start_text)
+            await send_tx_template_button(chat_id)
+            return "OK"
+
+        if message.get('text', '').startswith(r"/help"):
+            await send(documentation_text)
             await send_tx_template_button(chat_id)
             return "OK"
 
