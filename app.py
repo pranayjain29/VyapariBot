@@ -184,11 +184,11 @@ start_text = r"""🎉 Welcome to Your Business Assistant Bot!
 
 Hello! I'm here to help you manage your business with simple, everyday language. Whether you're running a small shop, freelancing, or managing any business, I'll make record-keeping easy for you.
 
-<b>Before you start, please pick a language:</b>
-• Type /language <your language>
+<b>Before you start, please pick a language</b>
+• Type /language &lt;your language&gt;
 Example: /language Hindi
 
-<b>After setting the language, you can: </b>
+<b>After setting the language, you can</b>
 • Use the buttons below to add or view data, or
 • Type /help to see the full guide.
 
@@ -200,7 +200,7 @@ Hello! I'm here to help you manage your business with simple, everyday language.
 
 📝 What I Can Do For You:
 
-<b>1. Record Sales & Generate Invoices</b>
+<b>1. Record/Delete Sales & Generate Invoices</b>
 Just tell me about your sale in plain language, and I'll handle the rest!
 
 Required: /record to record, product name, quantity, and price per unit
@@ -212,6 +212,7 @@ Example texts:
 - "/record Record sale: 10 notebooks ₹25 each, customer paid via GPay"
 
 <i>Note: To delete any transaction, use /delete.</i>
+Delete Transactions: Type '/delete' and follow the steps to delete any transaction you want.
 
 <b>2. Download Data & Business Insights</b>
 Get your complete sales data or ask for reports and analysis.
@@ -230,6 +231,21 @@ Example texts:
 - "What's the best way to handle customer complaints?"
 - "Help me plan my inventory"
 
+<b>4. Inventory Management</b>
+Add, update or delete your inventory items!
+
+To add/update inventory items:
+Required: /inventory to add/update, product name(s), current stock(s), cost price(s) per unit
+Optional: product code(s), Unit of Measure(s) (taken as "pcs" by default), sales price(s)
+
+Example texts:
+- "/inventory notebook stock 100 cost 20"
+- "/inventory pen (PEN01) stock 50 bought at 10 each, pencil (PEN02) stock 75 bought at 5 each"
+- "/inventory sugar (SUG01) 25 kg cost 50, tea (TEA01) 15 kg cost 300 sells at 360"
+
+<i>Note: To delete any inventory item, use /deleteInventory.</i>
+Delete inventory item: Type '/deleteInventory' and follow the steps to delete any inventory item you want.
+
 <b>⚙️ Quick Settings:</b>
 
 Change Language: Type `/language` followed by your preferred language
@@ -238,11 +254,6 @@ Example: /language Hindi
 Set Company Details: Type `/company` followed by your business information
 Example: /company ABC Store, 123 Main Street, Mumbai, 9876543210, abc@email.com, GSTIN:22AAAAA0000A1Z5, PAN:AAAAA0000A
 
-Delete Transactions: Type '/delete' and follow the steps to delete any transaction you want.
-
-To record transactions or generate invoice: Type '/record' followed by your transaction details.
-
-To get your transaction data or business insights: Type '/report' followed by your request.
 ---
 
 <b>🔒 YOUR DATA IS SAFE WITH US</b>

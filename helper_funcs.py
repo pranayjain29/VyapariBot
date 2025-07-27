@@ -405,7 +405,8 @@ async def send_tx_template_button(chat_id: int):
     sale_template = (
     "/record\n"
     "Record Transaction:\n"
-    "Item(s): (item name)\n"             # ← use parentheses instead
+    "Item Name(s): (item name)\n"             # ← use parentheses instead
+    "Item Code(s): (If not given, assumed as item name)\n" 
     "Quantity(s): 1\n"
     "Price(s) per unit: 0\n"
     "Discount(s) per unit: 0\n"
@@ -424,7 +425,7 @@ async def send_tx_template_button(chat_id: int):
     "Current Stock(s): 0\n"
     "Unit of Measure(s): pcs\n"
     "Cost Price(s) per unit: 0\n"
-    "Cost Price(s) per unit: (Optional Field)\n"
+    "Sales Price(s) per unit: (Optional Field)\n"
     "(You can edit any value before sending.)"
     )
 
