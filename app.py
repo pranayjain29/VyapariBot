@@ -748,13 +748,13 @@ async def telegram_webhook(request: Request):
         async def send(msg: str):
             await send_telegram_message(chat_id, msg)
 
-        if "contact" in message:
-            phone_number = message["contact"].get("phone_number")
-            if phone_number:
-                await run_blocking(update_user_field, chat_id, "phone", phone_number)
-                # remove the keyboard right after storing
-                await remove_keyboard(chat_id)
-            return "OK"
+        # if "contact" in message:
+        #     phone_number = message["contact"].get("phone_number")
+        #     if phone_number:
+        #         await run_blocking(update_user_field, chat_id, "phone", phone_number)
+        #         # remove the keyboard right after storing
+        #         await remove_keyboard(chat_id)
+        #     return "OK"
 
 
         user_name = (
@@ -902,9 +902,9 @@ async def telegram_webhook(request: Request):
 
         phone_in_db = user_record.get("phone") if user_record else None
         print(f"Phone number is: {phone_in_db}")
-        if not phone_in_db:
-            await request_phone_number(chat_id)
-            return "OK"
+        # if not phone_in_db:
+        #     await request_phone_number(chat_id)
+        #     return "OK"
 
         # ------------------------------------------------------------------
         # 1.  Look up user; insert if not found
