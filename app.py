@@ -58,6 +58,7 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 GEMINI_API_KEY1 = os.getenv('GEMINI_API_KEY1')
 GEMINI_API_KEY2 = os.getenv('GEMINI_API_KEY2')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
@@ -1048,3 +1049,21 @@ def send_document(chat_id, file_path):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.get("/whatsapp/webhook")
+async def whatsapp_verify(request: Request):
+    params    = request.query_params
+    mode      = params.get("hub.mode")
+    token     = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
+
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return int(challenge)            # Meta requires raw text
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+@app.post("/whatsapp/webhook", dependencies=[Depends(rate_limiter(max_calls=20, time_window=60))])
+async def whatsapp_webhook(request: Request):
+    data = await request.json()
+    logging.info(f"Incoming WhatsApp payload: {data}")
+    # TODO: your existing processing logic
+    return "OK"
