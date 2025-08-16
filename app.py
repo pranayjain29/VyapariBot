@@ -58,9 +58,12 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 GEMINI_API_KEY1 = os.getenv('GEMINI_API_KEY1')
 GEMINI_API_KEY2 = os.getenv('GEMINI_API_KEY2')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+WHATSAPP_TOKEN  = os.getenv("WHATSAPP_ACCESS_TOKEN")   # long-lived
+VERIFY_TOKEN    = os.getenv("VERIFY_TOKEN")            # same string you entered in Meta
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
 # Configure Gemini
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -1045,6 +1048,35 @@ def send_document(chat_id, file_path):
     print(f"Invoice Sent {response.json()}")
     return response.json()
 
+async def send_whatsapp_message(to_number: str, text: str):
+    url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to_number,
+        "type": "text",
+        "text": {"body": text}
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(url, json=payload, headers=headers)
+    if r.status_code >= 300:
+        logging.warning(f"WhatsApp send error {r.status_code}: {r.text}")
+        
+async def handle_text_message(from_number: str, text_body: str):
+    # 1. Build context (keep it small; WA has 4096-char limit per message)
+    master_context = f"WhatsApp User: {from_number}"
+
+    vyapari_agent = AgentFactory.create_vyapari_agent(master_context)
+
+    response = await Runner.run(vyapari_agent, text_body)
+    final_output = response.final_output[:4096]      # WA safety truncation
+    print(f"Final Output is: {final_output}")
+    await send_whatsapp_message(from_number, final_output)
+
+
 @app.get('/health')
 async def health_check():
     """Health check endpoint."""
@@ -1061,9 +1093,27 @@ async def whatsapp_verify(request: Request):
         return int(challenge)            # Meta requires raw text
     raise HTTPException(status_code=403, detail="Verification failed")
 
+# ---------- 2. Incoming messages (POST) ----------
 @app.post("/whatsapp/webhook", dependencies=[Depends(rate_limiter(max_calls=20, time_window=60))])
 async def whatsapp_webhook(request: Request):
     data = await request.json()
-    logging.info(f"Incoming WhatsApp payload: {data}")
-    # TODO: your existing processing logic
-    return "OK"
+    # WhatsApp wraps every message inside entry → changes → value → messages
+    try:
+        for entry in data.get("entry", []):
+            for change in entry.get("changes", []):
+                value = change.get("value", {})
+                msgs  = value.get("messages", [])
+                if not msgs:
+                    continue
+
+                for msg in msgs:
+                    from_number = msg["from"]           # user’s phone
+                    msg_id      = msg["id"]
+                    text_body   = msg.get("text", {}).get("body", "")
+
+                    # --- your previous logic can start here ---
+                    await handle_text_message(from_number, text_body)
+        return "OK"
+    except Exception as e:
+        logging.error(f"WhatsApp webhook error: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
