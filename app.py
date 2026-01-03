@@ -93,8 +93,8 @@ async def lifespan(app: FastAPI):
     try:
         app_state.gemini_client1 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY1, timeout=60.0)
         app_state.gemini_client2 = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=GEMINI_API_KEY2, timeout=60.0)
-        app_state.model1 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client1)
-        app_state.model2 = OpenAIChatCompletionsModel(model="gemini-2.5-flash-preview-05-20", openai_client=app_state.gemini_client2)
+        app_state.model1 = OpenAIChatCompletionsModel(model="gemini-3.0-flash", openai_client=app_state.gemini_client1)
+        app_state.model2 = OpenAIChatCompletionsModel(model="gemini-3.0-flash", openai_client=app_state.gemini_client2)
         logger.info("AI models initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize AI models: {e}")
